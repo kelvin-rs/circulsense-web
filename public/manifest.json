@@ -1,0 +1,16 @@
+{
+  "name": "CirculSense AI - Fusi Sensor & Upcycling Pangan",
+  "short_name": "CirculSense",
+  "description": "Sistem Fusi Sensor Gas dan Visual Galaxy Upcycling Berbasis Web Responsif untuk Rekomendasi Daur Ulang Limbah Pangan",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#064E3B",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
