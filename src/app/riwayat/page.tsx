@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
-import { fetchScanRecords } from '@/lib/supabase';
+import { fetchScanRecords, deleteScanRecord } from '@/lib/supabase';
 import { ScanRecord, GasData } from '@/types/circulsense';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import {
@@ -14,104 +14,14 @@ import {
   Calendar,
   Trash2,
   Check,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  Layers
 } from 'lucide-react';
-
-const DEFAULT_SAMPLE_RECORDS: ScanRecord[] = [
-  {
-    id: 'sample-1',
-    item_name: 'Tomat',
-    category: 'Sayur',
-    freshness_score: 3,
-    status: 'Layu',
-    visual_condition: 'Tekstur Lembek & Kulit Berkerut',
-    action_taken: 'Diolah menjadi saus tomat',
-    recommendation_title: 'Saus Tomat Homemade',
-    gas_ch4_ppm: 2.15,
-    gas_aqi_ppm: 48,
-    saved_weight_kg: 0.5,
-    prevented_ch4_g: 12.5,
-    prevented_co2e_g: 48.2,
-    financial_savings_idr: 4200,
-    image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&auto=format&fit=crop&q=80',
-    created_at: '2025-05-12T09:30:00.000Z'
-  },
-  {
-    id: 'sample-2',
-    item_name: 'Sawi Hijau',
-    category: 'Sayur',
-    freshness_score: 4,
-    status: 'Segar',
-    visual_condition: 'Daun Segar Hijau Cerah',
-    action_taken: 'Dimasak menjadi tumis sawi',
-    recommendation_title: 'Tumis Sawi Bawang Putih',
-    gas_ch4_ppm: 0.85,
-    gas_aqi_ppm: 32,
-    saved_weight_kg: 0.4,
-    prevented_ch4_g: 10.0,
-    prevented_co2e_g: 35.0,
-    financial_savings_idr: 3500,
-    image_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&auto=format&fit=crop&q=80',
-    created_at: '2025-05-11T18:20:00.000Z'
-  },
-  {
-    id: 'sample-3',
-    item_name: 'Pisang',
-    category: 'Buah',
-    freshness_score: 1,
-    status: 'Busuk',
-    visual_condition: 'Bercak Hitam Menyeluruh & Fermentasi',
-    action_taken: 'Dibuat kompos cair',
-    recommendation_title: 'Kompos Organik Cair POC',
-    gas_ch4_ppm: 4.80,
-    gas_aqi_ppm: 110,
-    saved_weight_kg: 0.6,
-    prevented_ch4_g: 15.0,
-    prevented_co2e_g: 65.0,
-    financial_savings_idr: 0,
-    image_url: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&auto=format&fit=crop&q=80',
-    created_at: '2025-05-10T16:40:00.000Z'
-  },
-  {
-    id: 'sample-4',
-    item_name: 'Selada',
-    category: 'Sayur',
-    freshness_score: 4,
-    status: 'Segar',
-    visual_condition: 'Kerenyahan Daun Optimal',
-    action_taken: 'Dibuat salad',
-    recommendation_title: 'Salad Sayur Segar Dressing Lemon',
-    gas_ch4_ppm: 0.65,
-    gas_aqi_ppm: 28,
-    saved_weight_kg: 0.3,
-    prevented_ch4_g: 7.5,
-    prevented_co2e_g: 28.0,
-    financial_savings_idr: 4000,
-    image_url: 'https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=400&auto=format&fit=crop&q=80',
-    created_at: '2025-05-09T11:15:00.000Z'
-  },
-  {
-    id: 'sample-5',
-    item_name: 'Tomat',
-    category: 'Sayur',
-    freshness_score: 2,
-    status: 'Terlalu Matang',
-    visual_condition: 'Kulit Berair & Mulai Melunak',
-    action_taken: 'Diolah menjadi pizza mini',
-    recommendation_title: 'Topping Pizza Mini Crust',
-    gas_ch4_ppm: 2.90,
-    gas_aqi_ppm: 55,
-    saved_weight_kg: 0.5,
-    prevented_ch4_g: 12.5,
-    prevented_co2e_g: 52.0,
-    financial_savings_idr: 4500,
-    image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&auto=format&fit=crop&q=80',
-    created_at: '2025-05-08T10:05:00.000Z'
-  }
-];
 
 export default function RiwayatPage() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeCategory, setActiveCategory] = useState<'Semua' | 'Sayur' | 'Buah'>('Semua');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [tempDate, setTempDate] = useState<string>('');
@@ -153,20 +63,21 @@ export default function RiwayatPage() {
   }, []);
 
   const loadData = async () => {
-    const data = await fetchScanRecords();
-    if (data && data.length > 0) {
-      setRecords(data);
-    } else {
-      setRecords(DEFAULT_SAMPLE_RECORDS);
+    setIsLoading(true);
+    try {
+      const data = await fetchScanRecords();
+      setRecords(data || []);
+    } catch (e) {
+      console.error('Error fetching scan records from DB:', e);
+      setRecords([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteItem = (id: string) => {
-    const updated = records.filter((r) => r.id !== id);
-    setRecords(updated);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('circulsense_local_scans', JSON.stringify(updated));
-    }
+  const handleDeleteItem = async (id: string) => {
+    await deleteScanRecord(id);
+    setRecords((prev) => prev.filter((r) => r.id !== id));
     setItemToDelete(null);
   };
 
@@ -190,12 +101,12 @@ export default function RiwayatPage() {
     const matchesCategory = activeCategory === 'Semua' || rec.category === activeCategory;
     const matchesSearch =
       rec.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rec.action_taken.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rec.status.toLowerCase().includes(searchQuery.toLowerCase());
+      (rec.action_taken && rec.action_taken.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (rec.status && rec.status.toLowerCase().includes(searchQuery.toLowerCase()));
 
     // Date filtering
     let matchesDate = true;
-    if (selectedDate) {
+    if (selectedDate && rec.created_at) {
       const recDate = new Date(rec.created_at).toISOString().slice(0, 10);
       matchesDate = recDate === selectedDate;
     }
@@ -232,7 +143,8 @@ export default function RiwayatPage() {
     };
   };
 
-  const formatDate = (isoString: string) => {
+  const formatDate = (isoString?: string) => {
+    if (!isoString) return '-';
     try {
       const d = new Date(isoString);
       return (
@@ -264,9 +176,14 @@ export default function RiwayatPage() {
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 pb-32 md:pb-16 space-y-4">
         {/* 1. TOP HEADER BAR */}
         <div className="flex items-center justify-between pt-1">
-          <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-            Riwayat Analisis
-          </h1>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
+              Riwayat Analisis
+            </h1>
+            <p className="text-xs text-[#64748B] mt-0.5">
+              Data pemindaian real-time dari database
+            </p>
+          </div>
 
           <button
             type="button"
@@ -287,7 +204,7 @@ export default function RiwayatPage() {
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama bahan pangan atau status..."
+              placeholder="Ketik nama bahan pangan, status kesegaran, atau rekomendasi..."
               className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-xs sm:text-sm text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
             />
             {searchQuery && (
@@ -302,7 +219,7 @@ export default function RiwayatPage() {
           </div>
         )}
 
-        {/* 2. CATEGORY & POPOVER FILTER BAR (4 KOLOM PAS 1 BARIS) */}
+        {/* 2. CATEGORY & POPOVER FILTER BAR */}
         <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full pt-0.5">
           {(['Semua', 'Sayur', 'Buah'] as const).map((cat) => {
             const isSelected = activeCategory === cat;
@@ -351,10 +268,9 @@ export default function RiwayatPage() {
               )}
             </button>
 
-            {/* MINI POPUP FILTER CARD TEPAT DI BAWAH BUTTON */}
+            {/* MINI POPUP FILTER CARD */}
             {isFilterPopoverOpen && (
               <div className="absolute right-0 top-full mt-2 z-50 w-64 sm:w-72 bg-white rounded-2xl p-4 shadow-xl shadow-slate-900/10 border border-slate-100 space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
-                {/* Header Kecil */}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <div className="flex items-center space-x-1.5 text-xs font-bold text-[#0F172A]">
                     <Calendar className="w-3.5 h-3.5 text-[#2D7A38]" />
@@ -369,7 +285,6 @@ export default function RiwayatPage() {
                   </button>
                 </div>
 
-                {/* Input Tanggal Bersih */}
                 <div className="space-y-1">
                   <input
                     type="date"
@@ -379,7 +294,6 @@ export default function RiwayatPage() {
                   />
                 </div>
 
-                {/* Tombol Aksi Mini */}
                 <div className="flex items-center space-x-2 pt-0.5">
                   <button
                     type="button"
@@ -405,20 +319,29 @@ export default function RiwayatPage() {
 
         {/* 3. SEAMLESS LIST OF ANALYSIS ITEMS */}
         <div className="divide-y divide-slate-100 pt-1">
-          {filteredRecords.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 space-y-2">
-              <p className="text-sm font-semibold">Tidak ada riwayat analisis.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory('Semua');
-                  setSelectedDate('');
-                  setSearchQuery('');
-                }}
-                className="text-xs text-[#2D7A38] font-bold hover:underline cursor-pointer"
+          {isLoading ? (
+            <div className="py-16 text-center space-y-2">
+              <div className="w-8 h-8 border-3 border-[#2D7A38] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-[#64748B] font-medium">Memuat data riwayat dari database...</p>
+            </div>
+          ) : filteredRecords.length === 0 ? (
+            <div className="py-16 text-center space-y-3 px-4">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <Layers className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-[#0F172A]">Belum Ada Riwayat Analisis</h3>
+                <p className="text-xs text-[#64748B] max-w-sm mx-auto">
+                  Semua hasil pemindaian dan fusi sensor akan tersimpan secara real-time di sini.
+                </p>
+              </div>
+              <Link
+                href="/beranda"
+                className="inline-flex items-center space-x-1.5 bg-[#2D7A38] hover:bg-[#23632D] text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs cursor-pointer"
               >
-                Reset Semua Filter
-              </button>
+                <Camera className="w-3.5 h-3.5" />
+                <span>Mulai Pindai Bahan</span>
+              </Link>
             </div>
           ) : (
             filteredRecords.map((rec) => {
@@ -428,16 +351,22 @@ export default function RiwayatPage() {
                   key={rec.id}
                   className="py-3.5 sm:py-4 px-1 sm:px-2 flex items-center justify-between gap-3 hover:bg-slate-50/80 rounded-xl transition group"
                 >
-                  {/* Left: Food Thumbnail & Info (Clickable to /riwayat/[id]) */}
+                  {/* Left: Food Thumbnail & Info */}
                   <Link
                     href={`/riwayat/${rec.id}`}
                     className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1 cursor-pointer"
                   >
-                    <img
-                      src={rec.image_url}
-                      alt={rec.item_name}
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0 shadow-xs group-hover:scale-105 transition"
-                    />
+                    {rec.image_url ? (
+                      <img
+                        src={rec.image_url}
+                        alt={rec.item_name}
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0 shadow-xs group-hover:scale-105 transition border border-slate-100"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+                        <Layers className="w-6 h-6" />
+                      </div>
+                    )}
 
                     <div className="min-w-0 flex-1">
                       <h3 className="font-extrabold text-[#0F172A] text-sm sm:text-base leading-tight truncate group-hover:text-[#2D7A38] transition">
@@ -501,7 +430,7 @@ export default function RiwayatPage() {
             <div className="text-center space-y-1">
               <h3 className="font-extrabold text-[#0F172A] text-base">Hapus Riwayat Ini?</h3>
               <p className="text-xs text-slate-500">
-                Data analisis <strong>{itemToDelete.item_name}</strong> akan dihapus dari riwayat perangkat Anda.
+                Data analisis <strong>{itemToDelete.item_name}</strong> akan dihapus dari database Anda.
               </p>
             </div>
 

@@ -9,19 +9,72 @@ import { HasilAnalisis } from '@/components/beranda/HasilAnalisis';
 import { RecipeDetailModal } from '@/components/RecipeDetailModal';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import { runSensorFusion } from '@/lib/sensor-fusion';
-import { saveScanRecord } from '@/lib/supabase';
+import { saveScanRecord, supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 import { GasData, VisualData, FusionResult, UpcyclingRecommendation } from '@/types/circulsense';
 
 export default function BerandaPage() {
+  const { user } = useAuth();
   const [subView, setSubView] = useState<'pindai' | 'proses' | 'hasil'>('pindai');
   const [activeVisualData, setActiveVisualData] = useState<VisualData | null>(null);
   const [currentFusionResult, setCurrentFusionResult] = useState<FusionResult | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
+  const [triggerCameraCount, setTriggerCameraCount] = useState<number>(0);
 
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
   const [activeRecipeModal, setActiveRecipeModal] = useState<UpcyclingRecommendation | null>(null);
 
+  const handleTriggerCamera = () => {
+    setSubView('pindai');
+    setTriggerCameraCount((prev) => prev + 1);
+  };
+
+  // 1. Muat data telemetri terakhir dari database Supabase milik pengguna
+  useEffect(() => {
+    async function loadLatestTelemetry() {
+      if (!supabase || !user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('telemetri_sensor')
+          .select('*')
+          .eq('id_pengguna', user.id)
+          .order('waktu_perekaman', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data) {
+          setGasData({
+            ch4_ppm: Number(data.mq4_metana_ppm ?? data.mq4_gas_metana_ppm ?? 0),
+            aqi_ppm: Number(data.mq135_udara_ppm ?? data.mq135_aqi_ppm ?? 0),
+            raw_mq4: data.mq4_tegangan_raw,
+            raw_mq135: data.mq135_tegangan_raw,
+            temperature: Number(data.dht22_suhu_celsius),
+            humidity: Number(data.dht22_kelembapan_persen),
+            color_r: data.tcs_kanal_merah,
+            color_g: data.tcs_kanal_hijau,
+            color_b: data.tcs_kanal_biru,
+            color_c: data.tcs_kanal_clear,
+            color_lux: data.tcs_intensitas_lux,
+            color_temp: data.tcs_suhu_warna_kelvin,
+            color_hex: data.tcs_kode_hex,
+            color_name: data.tcs_nama_warna,
+            battery: 100,
+            is_connected: true,
+            has_data: true,
+            timestamp: data.waktu_perekaman
+          });
+        }
+      } catch (err) {
+        console.warn('Gagal memuat telemetri terakhir dari database:', err);
+      }
+    }
+
+    loadLatestTelemetry();
+  }, [user]);
+
+  // 2. Inisialisasi dan dengarkan aliran data MQTT
   useEffect(() => {
     mqttService.init();
 
@@ -69,6 +122,7 @@ export default function BerandaPage() {
             gasData={gasData}
             onStartAnalysis={handleStartAnalysis}
             onCameraStateChange={(isOpen) => setIsCameraOpen(isOpen)}
+            triggerCameraCount={triggerCameraCount}
           />
         )}
 
@@ -90,7 +144,7 @@ export default function BerandaPage() {
         )}
       </div>
 
-      {!isCameraOpen && <BottomNav />}
+      {!isCameraOpen && <BottomNav onTriggerCamera={handleTriggerCamera} />}
 
       <RecipeDetailModal
         recommendation={activeRecipeModal}

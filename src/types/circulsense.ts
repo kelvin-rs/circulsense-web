@@ -1,13 +1,26 @@
 export type FreshnessStatus = 'Segar' | 'Layu' | 'Busuk' | 'Terlalu Matang';
 
 export interface GasData {
-  ch4_ppm: number;       // MQ-4 Methane gas in ppm (normal: <1.0, warning: 1.0-2.5, rotten: >2.5)
-  aqi_ppm: number;       // MQ-135 Air quality / NH3 in ppm (normal: <50, warning: 50-120, rotten: >120)
-  raw_mq4?: number;
-  raw_mq135?: number;
-  battery: number;       // Percentage (e.g. 87%)
+  ch4_ppm?: number | null;       // MQ-4 Methane gas in ppm
+  aqi_ppm?: number | null;       // MQ-135 Air quality / NH3 in ppm
+  raw_mq4?: number | null;
+  raw_mq135?: number | null;
+  // Sensor Suhu & Kelembapan DHT22
+  temperature?: number | null;   // DHT22 Temperature in °C
+  humidity?: number | null;      // DHT22 Relative Humidity in %
+  // Sensor Warna TCS34725
+  color_r?: number | null;       // TCS34725 Red component (0-255)
+  color_g?: number | null;       // TCS34725 Green component (0-255)
+  color_b?: number | null;       // TCS34725 Blue component (0-255)
+  color_c?: number | null;       // TCS34725 Clear channel intensity
+  color_lux?: number | null;     // TCS34725 Illuminance in Lux
+  color_temp?: number | null;    // TCS34725 Color Temperature in Kelvin (CCT)
+  color_hex?: string | null;     // TCS34725 Hex Color
+  color_name?: string | null;    // Deskripsi warna terdeteksi
+  battery: number;               // Percentage
   is_connected: boolean;
-  timestamp: string;
+  has_data?: boolean;
+  timestamp?: string;
 }
 
 export interface VisualData {
@@ -46,6 +59,15 @@ export interface FusionResult {
     aqi_ppm: number;
     aqi_status: 'Baik' | 'Sedang' | 'Tinggi';
     visual_status: 'Segar' | 'Layu' | 'Berkerut' | 'Busuk';
+    temperature?: number | null;
+    humidity?: number | null;
+    color_hex?: string | null;
+    color_name?: string | null;
+    color_r?: number | null;
+    color_g?: number | null;
+    color_b?: number | null;
+    color_lux?: number | null;
+    color_temp?: number | null;
   };
   recommendation: UpcyclingRecommendation;
   saved_weight_kg: number;
@@ -73,6 +95,15 @@ export interface ScanRecord {
   prevented_co2e_g: number;
   financial_savings_idr: number;
   image_url: string;
+  temperature?: number | null;
+  humidity?: number | null;
+  color_hex?: string | null;
+  color_name?: string | null;
+  color_r?: number | null;
+  color_g?: number | null;
+  color_b?: number | null;
+  color_lux?: number | null;
+  color_temp?: number | null;
 }
 
 export interface ImpactSummary {
@@ -88,3 +119,16 @@ export interface ImpactSummary {
   trees_absorbed: number;
   total_financial_saved_idr: number;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  nama_lengkap: string;
+  nomor_telepon?: string;
+  peran?: string;
+  foto_profil_url?: string;
+  dibuat_pada?: string;
+  diperbarui_pada?: string;
+}
+
+

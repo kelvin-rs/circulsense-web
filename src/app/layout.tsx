@@ -23,6 +23,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+import { AuthProvider } from "@/lib/auth-context";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,7 +33,9 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${jakarta.variable} antialiased`}>
       <body className="min-h-screen bg-[#F7FAF8] text-[#1E293B] font-sans selection:bg-[#16A34A] selection:text-white">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

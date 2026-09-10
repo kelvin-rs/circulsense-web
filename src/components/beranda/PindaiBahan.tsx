@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Image as ImageIcon, RotateCw, CheckCircle2, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, RotateCw, CheckCircle2, X, Thermometer, Droplets, Palette, Sun, Activity, Sparkles, Wind } from 'lucide-react';
 import { GasData, VisualData } from '@/types/circulsense';
 
 interface PindaiBahanProps {
@@ -9,12 +9,14 @@ interface PindaiBahanProps {
   onStartAnalysis: (visualData: VisualData) => void;
   onCameraStateChange?: (isOpen: boolean) => void;
   onOpenTipsModal?: () => void;
+  triggerCameraCount?: number;
 }
 
 export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   gasData,
   onStartAnalysis,
   onCameraStateChange,
+  triggerCameraCount = 0
 }) => {
   const [useLiveCamera, setUseLiveCamera] = useState<boolean>(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -26,6 +28,24 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto trigger saat menu pindai ditekan atau URL mengandung ?buka_kamera=true
+  useEffect(() => {
+    if (triggerCameraCount > 0) {
+      setUseLiveCamera(true);
+    }
+  }, [triggerCameraCount]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('buka_kamera') === 'true') {
+        setUseLiveCamera(true);
+        // Bersihkan query param agar rapi tanpa reload
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (useLiveCamera) {
@@ -131,6 +151,13 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
         onChange={handleFileUpload}
         className="hidden"
       />
+      <button
+        id="btn-activate-camera"
+        type="button"
+        onClick={activateCamera}
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {/* FULLSCREEN IMMERSIVE CAMERA OVERLAY (100% COVERING VIEWPORT) */}
       {useLiveCamera && (
@@ -160,9 +187,8 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
             <div className="w-10" />
           </div>
 
-          {/* Bottom Controls Bar Overlay (Ganti Kamera, Shutter, Galeri) */}
+          {/* Bottom Controls Bar Overlay */}
           <div className="relative z-10 pb-12 sm:pb-10 px-8 flex items-center justify-between bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-            {/* Left: Switch Camera */}
             <button
               type="button"
               onClick={() => setCameraFacing(cameraFacing === 'environment' ? 'user' : 'environment')}
@@ -172,7 +198,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
               <RotateCw className="w-6 h-6 text-slate-800" />
             </button>
 
-            {/* Center: Snapshot Shutter Button */}
             <button
               type="button"
               onClick={handleTakeSnapshot}
@@ -182,7 +207,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
               <div className="w-10 h-10 rounded-full bg-[#2D7A38]" />
             </button>
 
-            {/* Right: Upload from Gallery / File */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -196,9 +220,9 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       )}
 
       {/* 1. HERO SECTION AT TOP (SEAMLESS) */}
-      <section className="space-y-4 pt-1 pb-2 max-w-3xl">
+      <section className="space-y-4 pt-1 pb-2 max-w-4xl">
         <div className="inline-block bg-[#DCFCE7] text-[#166534] text-[11px] sm:text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-[#BBF7D0]">
-          Inovasi Fusi Sensor & Upcycling Pangan
+          Inovasi Fusi Sensor Multimodal IoT & Edge AI
         </div>
 
         <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-[1.2]">
@@ -206,52 +230,54 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
         </h1>
 
         <p className="text-xs sm:text-sm md:text-base text-[#475569] leading-relaxed max-w-2xl">
-          Sistem terintegrasi yang memadukan deteksi visual kamera dan emisi gas biokimia (MQ-4 & MQ-135) dari ESP32 untuk menentukan tingkat kesegaran bahan pangan serta memberikan rekomendasi pengolahan daur ulang secara presisi.
+          Sistem terintegrasi yang memadukan deteksi visual kamera, telemetri gas biokimia (MQ-4 & MQ-135), suhu & kelembapan (DHT22), serta analisis kroma spektral (TCS34725) untuk evaluasi kesegaran bahan pangan presisi tinggi.
         </p>
 
-        <div className="pt-1 max-w-xs">
-          <button
-            id="btn-activate-camera"
-            type="button"
-            onClick={activateCamera}
-            className="w-full bg-[#2D7A38] hover:bg-[#23632D] text-white text-xs sm:text-sm font-bold py-3 px-5 rounded-xl shadow-xs transition duration-150 flex items-center justify-center space-x-2 cursor-pointer text-center"
-          >
-            <Camera className="w-4 h-4" />
-            <span>Buka Kamera Pindai</span>
-            <span className="text-sm font-bold">↓</span>
-          </button>
-        </div>
+        {/* 4 Metric Summary Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 pt-4 border-t border-[#F1F5F9]">
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center space-x-1.5">
+              <Wind className="w-3.5 h-3.5 text-[#2D7A38]" />
+              <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">MQ-4 & 135</span>
+            </div>
+            <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
+              Emisi Bio-Gas
+            </p>
+          </div>
 
-        {/* 3 Metric Summary Grid (Seamless) */}
-        <div className="grid grid-cols-3 gap-4 sm:gap-8 pt-4 border-t border-[#F1F5F9] max-w-md sm:max-w-lg">
-          <div>
-            <div className="text-sm sm:text-lg lg:text-xl font-extrabold text-[#0F172A] tracking-tight whitespace-nowrap">
-              MQ-4 & 135
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center space-x-1.5">
+              <Thermometer className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">DHT22</span>
             </div>
             <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              Sensor Biokimia
+              Suhu & Kelembapan
             </p>
           </div>
-          <div>
-            <div className="text-sm sm:text-lg lg:text-xl font-extrabold text-[#16A34A] tracking-tight whitespace-nowrap">
-              Edge AI
+
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center space-x-1.5">
+              <Palette className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">TCS34725</span>
             </div>
             <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              YOLO Client-Side
+              Spektral Warna RGB
             </p>
           </div>
-          <div>
-            <div className="text-sm sm:text-lg lg:text-xl font-extrabold text-[#0F172A] tracking-tight whitespace-nowrap">
-              0% E-Waste
+
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center space-x-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
+              <span className="text-xs sm:text-sm font-extrabold text-[#16A34A]">Edge AI</span>
             </div>
             <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              Galaxy Upcycling
+              YOLO Multimodal
             </p>
           </div>
         </div>
       </section>
 
-      {/* 2. CAMERA CAPTURE & ANALYSIS SECTION (SEAMLESS INTEGRATED VIEWPORT) */}
+      {/* 2. CAMERA CAPTURE & ANALYSIS SECTION */}
       <section id="camera-viewport" ref={cameraSectionRef} className="space-y-4 pt-4 border-t border-[#F1F5F9]">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
@@ -262,11 +288,10 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
           </p>
         </div>
 
-        {/* Viewport & Parameter Grid (Seamless without heavy box wrappers) */}
+        {/* Viewport & Parameter Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Main Visual Display Area */}
           <div className={capturedImage ? "lg:col-span-7 space-y-3" : "lg:col-span-12 max-w-3xl w-full space-y-3"}>
-            {/* Header with Space Between */}
             <div className="flex items-center justify-between gap-2 pb-1">
               <span className="text-xs font-extrabold text-[#0F172A] uppercase tracking-wider">
                 {capturedImage ? 'Hasil Tangkapan Citra' : 'Viewport Kamera'}
@@ -289,7 +314,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                     alt="Hasil Tangkapan Citra Bahan"
                     className="w-full h-full object-cover"
                   />
-                  {/* Delete / Reset Image Button */}
                   <button
                     type="button"
                     onClick={() => setCapturedImage(null)}
@@ -320,7 +344,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
               )}
             </div>
 
-            {/* Action Toolbar Below Image (when image is captured) */}
             {capturedImage && (
               <div className="flex items-center justify-between gap-3 pt-1">
                 <button
@@ -344,7 +367,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
             )}
           </div>
 
-          {/* Right Column: AI Auto-Detection & Telemetry (Seamless) */}
+          {/* Right Column: AI Auto-Detection & Telemetry */}
           {capturedImage && (
             <div className="lg:col-span-5 space-y-4">
               <div className="space-y-4">
@@ -352,7 +375,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                   Parameter & Deteksi Otomatis AI
                 </h3>
 
-                {/* AI Auto-Detection & Gas Metrics List */}
+                {/* Telemetry Metrics List */}
                 <div className="space-y-2.5 text-xs">
                   {/* Auto Detection Row */}
                   <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
@@ -367,39 +390,81 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                     </span>
                   </div>
 
-                  {/* Status Citra Row */}
-                  <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
-                    <span className="text-[#64748B] font-medium">Status Citra Kamera:</span>
-                    <strong className="text-[#166534] font-bold">
-                      Siap Dianalisis
-                    </strong>
-                  </div>
-
-                  {/* Telemetri MQ-4 Row with Space-Between */}
+                  {/* DHT22 Suhu & Kelembapan Row */}
                   <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                     <div>
-                      <span className="text-[#64748B] block font-medium">Telemetri Sensor MQ-4:</span>
-                      <span className="text-[10px] text-[#94A3B8]">Gas Metana ($CH_4$)</span>
+                      <div className="flex items-center space-x-1.5">
+                        <Thermometer className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="text-[#64748B] font-medium">Suhu & Kelembapan (DHT22):</span>
+                      </div>
+                      <span className="text-[10px] text-[#94A3B8]">Iklim Ruang Sampel</span>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono text-sm font-extrabold text-[#0F172A]">
-                        {gasData.ch4_ppm.toFixed(2)}
-                      </span>
-                      <span className="text-[11px] font-mono text-[#64748B] ml-1">ppm</span>
+                      <div className="font-mono text-sm font-extrabold text-[#0F172A]">
+                        {gasData.temperature != null ? `${gasData.temperature.toFixed(1)}°C` : '-'}
+                        <span className="text-xs text-[#64748B] ml-1.5">
+                          • {gasData.humidity != null ? `${gasData.humidity.toFixed(0)}% RH` : '-'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Telemetri MQ-135 Row with Space-Between */}
+                  {/* TCS34725 Sensor Warna Row */}
                   <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                     <div>
-                      <span className="text-[#64748B] block font-medium">Telemetri Sensor MQ-135:</span>
-                      <span className="text-[10px] text-[#94A3B8]">Kualitas Udara / Amonia</span>
+                      <div className="flex items-center space-x-1.5">
+                        <Palette className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-[#64748B] font-medium">Spektrum Warna (TCS34725):</span>
+                      </div>
+                      <span className="text-[10px] text-[#94A3B8]">
+                        {gasData.color_name || '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {gasData.color_hex ? (
+                        <div
+                          className="w-5 h-5 rounded-full border border-black/20 shadow-xs shrink-0"
+                          style={{ backgroundColor: gasData.color_hex }}
+                          title={`Hex: ${gasData.color_hex}`}
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 bg-slate-100 shrink-0" />
+                      )}
+                      <span className="font-mono text-xs font-bold text-[#0F172A]">
+                        {gasData.color_hex || '-'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Telemetri MQ-4 Row */}
+                  <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
+                    <div>
+                      <span className="text-[#64748B] block font-medium">Sensor Metana (MQ-4):</span>
+                      <span className="text-[10px] text-[#94A3B8]">Emisi Gas $CH_4$</span>
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-sm font-extrabold text-[#0F172A]">
-                        {gasData.aqi_ppm}
+                        {gasData.ch4_ppm != null ? gasData.ch4_ppm.toFixed(2) : '-'}
                       </span>
-                      <span className="text-[11px] font-mono text-[#64748B] ml-1">AQI</span>
+                      {gasData.ch4_ppm != null && (
+                        <span className="text-[11px] font-mono text-[#64748B] ml-1">ppm</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Telemetri MQ-135 Row */}
+                  <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
+                    <div>
+                      <span className="text-[#64748B] block font-medium">Sensor Kualitas (MQ-135):</span>
+                      <span className="text-[10px] text-[#94A3B8]">Amonia & Total VOC</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono text-sm font-extrabold text-[#0F172A]">
+                        {gasData.aqi_ppm != null ? gasData.aqi_ppm : '-'}
+                      </span>
+                      {gasData.aqi_ppm != null && (
+                        <span className="text-[11px] font-mono text-[#64748B] ml-1">AQI</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -419,82 +484,204 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
         </div>
       </section>
 
-      {/* 3. TELEMETRY STRIP (SEAMLESS INTEGRATED METRICS) */}
-      <section className="pt-6 border-t border-[#F1F5F9]">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* MQ-4 Metric */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
-                Sensor MQ-4 (Metana)
-              </span>
-              <span className="text-[10px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md border border-[#BBF7D0]">
-                $CH_4$ Aktif
-              </span>
-            </div>
-
-            <div className="flex items-baseline space-x-1.5">
-              <span className="text-3xl font-black text-[#0F172A]">
-                {gasData.ch4_ppm > 0 ? gasData.ch4_ppm.toFixed(2) : '0.00'}
-              </span>
-              <span className="text-xs font-mono text-[#64748B]">ppm</span>
-            </div>
-
-            <p className="text-[11px] text-[#64748B]">
-              Ambang Segar: <span className="font-semibold text-[#166534]">&lt; 1.0 ppm</span>
+      {/* 3. TELEMETRY STRIP - COMPREHENSIVE SENSOR SUITE */}
+      <section className="pt-6 border-t border-[#F1F5F9] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] tracking-tight">
+              Telemetri Sensor IoT Terpadu
+            </h2>
+            <p className="text-xs text-[#64748B]">
+              Pemantauan real-time data sensor
             </p>
           </div>
+          <div className={`inline-flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full border w-fit ${
+            gasData.has_data || gasData.is_connected
+              ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
+              : 'bg-slate-100 text-slate-600 border-slate-200'
+          }`}>
+            <Activity className={`w-3.5 h-3.5 ${gasData.has_data || gasData.is_connected ? 'animate-pulse text-emerald-600' : 'text-slate-400'}`} />
+            <span>{gasData.has_data || gasData.is_connected ? 'Node Sensor Aktif' : 'Menunggu Transmisi Sensor'}</span>
+          </div>
+        </div>
 
-          {/* MQ-135 Metric */}
-          <div className="space-y-2 md:border-l md:border-[#F1F5F9] md:pl-6">
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
-                Sensor MQ-135 (Kualitas)
-              </span>
-              <span className="text-[10px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md border border-[#BBF7D0]">
-                AQI / NH3
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Card 1: DHT22 Suhu & Kelembapan */}
+          <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <div className="flex items-center space-x-1.5">
+                <Thermometer className="w-4 h-4 text-blue-600" />
+                <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
+                  DHT22 (Suhu & RH)
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                Termo-Hygro
               </span>
             </div>
 
-            <div className="flex items-baseline space-x-1.5">
-              <span className="text-3xl font-black text-[#0F172A]">
-                {gasData.aqi_ppm > 0 ? gasData.aqi_ppm : '0'}
-              </span>
-              <span className="text-xs font-mono text-[#64748B]">AQI</span>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div>
+                <span className="text-[10px] text-[#64748B] block font-medium">Suhu Ruang</span>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-2xl font-black text-[#0F172A]">
+                    {gasData.temperature != null ? gasData.temperature.toFixed(1) : '-'}
+                  </span>
+                  {gasData.temperature != null && (
+                    <span className="text-xs font-mono text-[#64748B]">°C</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#64748B] block font-medium">Kelembapan</span>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-2xl font-black text-[#0F172A]">
+                    {gasData.humidity != null ? gasData.humidity.toFixed(0) : '-'}
+                  </span>
+                  {gasData.humidity != null && (
+                    <span className="text-xs font-mono text-[#64748B]">% RH</span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <p className="text-[11px] text-[#64748B]">
-              Ambang Segar: <span className="font-semibold text-[#166534]">&lt; 50 AQI</span>
-            </p>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+              <span className="flex items-center space-x-1">
+                <Droplets className="w-3 h-3 text-blue-500" />
+                <span>Kondisi Simpan:</span>
+              </span>
+              <span className={`font-semibold ${gasData.temperature != null ? 'text-[#166534]' : 'text-slate-400'}`}>
+                {gasData.temperature != null ? 'Optimal (20-30°C)' : '-'}
+              </span>
+            </div>
           </div>
 
-          {/* Kategori Kesegaran Metric */}
-          <div className="space-y-2 md:border-l md:border-[#F1F5F9] md:pl-6">
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
-                Kategori Kesegaran
+          {/* Card 2: TCS34725 Sensor Warna */}
+          <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <div className="flex items-center space-x-1.5">
+                <Palette className="w-4 h-4 text-amber-500" />
+                <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
+                  TCS34725 (Warna)
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                RGB + Lux
               </span>
-              <span className="text-[10px] font-semibold text-[#64748B]">Skor 1 - 5</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="bg-[#DCFCE7] text-[#166534] p-1.5 rounded-lg border border-[#BBF7D0]">
-                <div className="font-extrabold text-xs">4-5</div>
-                <div className="text-[9px] font-bold">Segar</div>
-              </div>
-              <div className="bg-[#FEF3C7] text-[#92400E] p-1.5 rounded-lg border border-[#FDE68A]">
-                <div className="font-extrabold text-xs">2-3</div>
-                <div className="text-[9px] font-bold">Layu</div>
-              </div>
-              <div className="bg-[#FEE2E2] text-[#991B1B] p-1.5 rounded-lg border border-[#FECACA]">
-                <div className="font-extrabold text-xs">1</div>
-                <div className="text-[9px] font-bold">Busuk</div>
+            <div className="flex items-center space-x-3 pt-1">
+              <div
+                className={`w-11 h-11 rounded-xl shadow-inner border shrink-0 flex items-center justify-center transition-all duration-300 ${
+                  gasData.color_hex ? 'border-black/15' : 'border-dashed border-slate-300 bg-slate-100'
+                }`}
+                style={gasData.color_hex ? { backgroundColor: gasData.color_hex } : undefined}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-sm font-extrabold text-[#0F172A] truncate">
+                  {gasData.color_hex || '-'}
+                </div>
+                <div className="text-[10px] text-[#64748B] font-medium truncate">
+                  {gasData.color_name || 'Menunggu transmisi sensor'}
+                </div>
               </div>
             </div>
 
-            <p className="text-[10px] text-[#64748B]">
-              Fusi Multimodal Visual & Bio-Gas
-            </p>
+            {/* Mini RGB distribution channels */}
+            <div className="pt-2 border-t border-slate-100 space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-[#64748B]">
+                <span>R: {gasData.color_r ?? '-'}</span>
+                <span>G: {gasData.color_g ?? '-'}</span>
+                <span>B: {gasData.color_b ?? '-'}</span>
+                <span className="font-medium text-[#0F172A]">{gasData.color_lux != null ? `${gasData.color_lux} Lux` : '- Lux'}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden flex">
+                {gasData.color_r != null && gasData.color_g != null && gasData.color_b != null ? (
+                  <>
+                    <div
+                      className="bg-red-500 h-full"
+                      style={{ width: `${(gasData.color_r / (gasData.color_r + gasData.color_g + gasData.color_b || 1)) * 100}%` }}
+                    />
+                    <div
+                      className="bg-green-500 h-full"
+                      style={{ width: `${(gasData.color_g / (gasData.color_r + gasData.color_g + gasData.color_b || 1)) * 100}%` }}
+                    />
+                    <div
+                      className="bg-blue-500 h-full"
+                      style={{ width: `${(gasData.color_b / (gasData.color_r + gasData.color_g + gasData.color_b || 1)) * 100}%` }}
+                    />
+                  </>
+                ) : (
+                  <div className="bg-slate-200 h-full w-full" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Sensor MQ-4 (Metana) */}
+          <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <div className="flex items-center space-x-1.5">
+                <Wind className="w-4 h-4 text-[#2D7A38]" />
+                <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
+                  MQ-4 (Metana)
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                gasData.ch4_ppm != null ? 'text-[#166534] bg-[#DCFCE7] border-[#BBF7D0]' : 'text-slate-500 bg-slate-100 border-slate-200'
+              }`}>
+                {gasData.ch4_ppm != null ? '$CH_4$ Terdeteksi' : 'Belum Ada Data'}
+              </span>
+            </div>
+
+            <div className="flex items-baseline space-x-1.5 pt-1">
+              <span className="text-2xl font-black text-[#0F172A]">
+                {gasData.ch4_ppm != null ? gasData.ch4_ppm.toFixed(2) : '-'}
+              </span>
+              {gasData.ch4_ppm != null && (
+                <span className="text-xs font-mono text-[#64748B]">ppm</span>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+              <span>Ambang Segar:</span>
+              <span className={`font-semibold ${gasData.ch4_ppm != null ? 'text-[#166534]' : 'text-slate-400'}`}>
+                {gasData.ch4_ppm != null ? '< 1.0 ppm' : '-'}
+              </span>
+            </div>
+          </div>
+
+          {/* Card 4: Sensor MQ-135 (Kualitas Udara) */}
+          <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <div className="flex items-center space-x-1.5">
+                <Activity className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
+                  MQ-135 (Kualitas)
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                gasData.aqi_ppm != null ? 'text-[#166534] bg-[#DCFCE7] border-[#BBF7D0]' : 'text-slate-500 bg-slate-100 border-slate-200'
+              }`}>
+                {gasData.aqi_ppm != null ? 'AQI / VOC' : 'Belum Ada Data'}
+              </span>
+            </div>
+
+            <div className="flex items-baseline space-x-1.5 pt-1">
+              <span className="text-2xl font-black text-[#0F172A]">
+                {gasData.aqi_ppm != null ? gasData.aqi_ppm : '-'}
+              </span>
+              {gasData.aqi_ppm != null && (
+                <span className="text-xs font-mono text-[#64748B]">AQI</span>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+              <span>Ambang Segar:</span>
+              <span className={`font-semibold ${gasData.aqi_ppm != null ? 'text-[#166534]' : 'text-slate-400'}`}>
+                {gasData.aqi_ppm != null ? '< 50 AQI' : '-'}
+              </span>
+            </div>
           </div>
         </div>
       </section>

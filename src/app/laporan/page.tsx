@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
 import { fetchScanRecords, calculateImpactSummary } from '@/lib/supabase';
-import { ImpactSummary, GasData } from '@/types/circulsense';
+import { ImpactSummary, GasData, ScanRecord } from '@/types/circulsense';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import {
   Calendar,
@@ -12,34 +12,44 @@ import {
   Sprout,
   Trash,
   BarChart3,
-  Wallet
+  Wallet,
+  Layers
 } from 'lucide-react';
 
 type FilterPeriod = 'tahunan' | 'bulanan' | 'tanggal';
 
 export default function LaporanPage() {
   const [filterType, setFilterType] = useState<FilterPeriod>('bulanan');
-  const [selectedYear, setSelectedYear] = useState<string>('2025 - 2026');
-  const [selectedMonth, setSelectedMonth] = useState<string>('Mei 2025');
-  const [selectedDate, setSelectedDate] = useState<string>('2026-08-29');
+  const [allRecords, setAllRecords] = useState<ScanRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const currentYearStr = new Date().getFullYear().toString();
+  const currentMonthStr = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+
+  const [selectedYear, setSelectedYear] = useState<string>(currentYearStr);
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
+  const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
+
+  const [availableMonths, setAvailableMonths] = useState<string[]>([currentMonthStr]);
+  const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState<boolean>(false);
 
   const [summary, setSummary] = useState<ImpactSummary>({
-    month_name: 'Mei 2025',
-    food_saved_kg: 18,
-    food_composted_kg: 10,
-    total_scans: 28,
-    upcycle_percent: 64,
-    compost_percent: 36,
-    ch4_prevented_g: 245.6,
-    forest_absorbed_sqm: 6.1,
-    co2e_prevented_g: 612.3,
-    trees_absorbed: 0.61,
-    total_financial_saved_idr: 150000
+    month_name: currentMonthStr,
+    food_saved_kg: 0,
+    food_composted_kg: 0,
+    total_scans: 0,
+    upcycle_percent: 0,
+    compost_percent: 0,
+    ch4_prevented_g: 0,
+    forest_absorbed_sqm: 0,
+    co2e_prevented_g: 0,
+    trees_absorbed: 0,
+    total_financial_saved_idr: 0
   });
 
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
-  const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState<boolean>(false);
 
   useEffect(() => {
     mqttService.init();
@@ -61,41 +71,68 @@ export default function LaporanPage() {
   }, []);
 
   const loadData = async () => {
-    const records = await fetchScanRecords();
-    if (records && records.length > 0) {
-      const calculated = calculateImpactSummary(records);
-      setSummary({
-        month_name: 'Mei 2025',
-        food_saved_kg: calculated.food_saved_kg || 18,
-        food_composted_kg: calculated.food_composted_kg || 10,
-        total_scans: calculated.total_scans || 28,
-        upcycle_percent: calculated.upcycle_percent || 64,
-        compost_percent: calculated.compost_percent || 36,
-        ch4_prevented_g: calculated.ch4_prevented_g || 245.6,
-        forest_absorbed_sqm: calculated.forest_absorbed_sqm || 6.1,
-        co2e_prevented_g: calculated.co2e_prevented_g || 612.3,
-        trees_absorbed: calculated.trees_absorbed || 0.61,
-        total_financial_saved_idr: calculated.total_financial_saved_idr || 150000
-      });
+    setIsLoading(true);
+    try {
+      const records = await fetchScanRecords();
+      setAllRecords(records || []);
+
+      // Extract unique months from real records
+      if (records && records.length > 0) {
+        const monthSet = new Set<string>();
+        records.forEach((r) => {
+          if (r.created_at) {
+            const m = new Date(r.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+            monthSet.add(m);
+          }
+        });
+        const monthList = Array.from(monthSet);
+        if (monthList.length > 0) {
+          setAvailableMonths(monthList);
+          if (!monthSet.has(selectedMonth)) {
+            setSelectedMonth(monthList[0]);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error loading report records:', e);
+      setAllRecords([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Multiplier switch
-  const getMultiplier = () => {
-    if (filterType === 'tahunan') return 12;
-    if (filterType === 'tanggal') return 0.25;
-    return 1;
-  };
+  // Recalculate summary whenever allRecords, filterType, selectedMonth, selectedYear, or selectedDate changes
+  useEffect(() => {
+    if (!allRecords) return;
 
-  const multiplier = getMultiplier();
-  const currentSavedKg = Math.round(summary.food_saved_kg * multiplier * 10) / 10;
-  const currentCompostKg = Math.round(summary.food_composted_kg * multiplier * 10) / 10;
-  const currentScans = Math.round(summary.total_scans * multiplier);
-  const currentCh4 = Math.round(summary.ch4_prevented_g * multiplier * 10) / 10;
-  const currentCo2e = Math.round(summary.co2e_prevented_g * multiplier * 10) / 10;
-  const currentForest = Math.round(summary.forest_absorbed_sqm * multiplier * 10) / 10;
-  const currentTrees = Math.round(summary.trees_absorbed * multiplier * 100) / 100;
-  const currentSavings = Math.round(summary.total_financial_saved_idr * multiplier);
+    let filtered = allRecords;
+
+    if (filterType === 'tahunan') {
+      filtered = allRecords.filter((r) => {
+        if (!r.created_at) return false;
+        const year = new Date(r.created_at).getFullYear().toString();
+        return year === selectedYear;
+      });
+    } else if (filterType === 'bulanan') {
+      filtered = allRecords.filter((r) => {
+        if (!r.created_at) return false;
+        const m = new Date(r.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        return m === selectedMonth;
+      });
+    } else if (filterType === 'tanggal') {
+      filtered = allRecords.filter((r) => {
+        if (!r.created_at) return false;
+        const d = new Date(r.created_at).toISOString().slice(0, 10);
+        return d === selectedDate;
+      });
+    }
+
+    const calculated = calculateImpactSummary(
+      filtered,
+      filterType === 'tahunan' ? `Tahun ${selectedYear}` : filterType === 'tanggal' ? selectedDate : selectedMonth
+    );
+    setSummary(calculated);
+  }, [allRecords, filterType, selectedYear, selectedMonth, selectedDate]);
 
   // SVG Donut Chart Geometry
   const size = 130;
@@ -105,8 +142,6 @@ export default function LaporanPage() {
   const circumference = 2 * Math.PI * radius;
   const upcycleOffset = circumference - (summary.upcycle_percent / 100) * circumference;
 
-  const months = ['Mei 2025', 'April 2025', 'Maret 2025', 'Februari 2025'];
-
   return (
     <main className="min-h-screen bg-white text-[#1E293B] flex flex-col selection:bg-[#16A34A] selection:text-white">
       <Header
@@ -115,7 +150,7 @@ export default function LaporanPage() {
       />
 
       <div className="flex-1 w-full max-w-xl mx-auto px-4 sm:px-6 py-5 pb-32 md:pb-16 space-y-5">
-        {/* 1. SEGMENTED FILTER BAR (SESUAI TEMA HIJAU CIRCULSENSE) */}
+        {/* 1. SEGMENTED FILTER BAR */}
         <div className="space-y-2">
           <div className="w-full bg-slate-100/80 p-1 rounded-xl flex items-center shadow-2xs">
             {/* Tab Tahunan */}
@@ -158,10 +193,10 @@ export default function LaporanPage() {
             </button>
           </div>
 
-          {/* Sub-selector & Timestamp Ringkas */}
+          {/* Sub-selector */}
           <div className="flex items-center justify-between text-xs pt-0.5">
             <span className="text-[11px] text-slate-400 font-medium">
-              Update: 29 Agu 2026, 16:24
+              Sumber: Supabase Realtime DB
             </span>
 
             {filterType === 'bulanan' && (
@@ -177,8 +212,8 @@ export default function LaporanPage() {
                 </button>
 
                 {isMonthDropdownOpen && (
-                  <div className="absolute right-0 top-8 bg-white border border-slate-100 rounded-xl shadow-xl p-1 z-20 min-w-[130px] space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
-                    {months.map((m) => (
+                  <div className="absolute right-0 top-8 bg-white border border-slate-100 rounded-xl shadow-xl p-1 z-20 min-w-[140px] space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+                    {availableMonths.map((m) => (
                       <button
                         key={m}
                         type="button"
@@ -220,7 +255,7 @@ export default function LaporanPage() {
         {/* 2. BAGIAN: RINGKASAN */}
         <section className="space-y-2.5">
           <h2 className="text-sm sm:text-base font-bold text-[#0F172A] tracking-tight">
-            Ringkasan
+            Ringkasan Dampak Pangan
           </h2>
 
           <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
@@ -234,7 +269,7 @@ export default function LaporanPage() {
               </span>
               <div>
                 <span className="text-xl sm:text-2xl font-extrabold text-[#0F172A] leading-none block">
-                  {currentSavedKg}
+                  {summary.food_saved_kg}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium block">kg</span>
               </div>
@@ -250,7 +285,7 @@ export default function LaporanPage() {
               </span>
               <div>
                 <span className="text-xl sm:text-2xl font-extrabold text-[#0F172A] leading-none block">
-                  {currentCompostKg}
+                  {summary.food_composted_kg}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium block">kg</span>
               </div>
@@ -262,11 +297,11 @@ export default function LaporanPage() {
                 <BarChart3 className="w-4 h-4 stroke-[2.2]" />
               </div>
               <span className="text-[11px] font-bold text-slate-700 leading-tight">
-                Analisis
+                Total Pindai
               </span>
               <div>
                 <span className="text-xl sm:text-2xl font-extrabold text-[#0F172A] leading-none block">
-                  {currentScans}
+                  {summary.total_scans}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium block">kali</span>
               </div>
@@ -277,79 +312,90 @@ export default function LaporanPage() {
         {/* 3. BAGIAN: GRAFIK REDUKSI SAMPAH */}
         <section className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
           <h2 className="text-sm sm:text-base font-bold text-[#0F172A] tracking-tight">
-            Grafik Reduksi Sampah
+            Proporsi Pengolahan Sampah Pangan
           </h2>
 
-          <div className="flex items-center justify-around gap-4 py-1">
-            {/* Donut Chart */}
-            <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90 transform" viewBox={`0 0 ${size} ${size}`}>
-                <circle
-                  cx={center}
-                  cy={center}
-                  r={radius}
-                  className="text-amber-500"
-                  strokeWidth={strokeWidth}
-                  stroke="currentColor"
-                  fill="transparent"
-                />
-                <circle
-                  cx={center}
-                  cy={center}
-                  r={radius}
-                  className="text-[#2D7A38] transition-all duration-700"
-                  strokeWidth={strokeWidth}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={upcycleOffset}
-                  strokeLinecap="butt"
-                  stroke="currentColor"
-                  fill="transparent"
-                />
-              </svg>
+          {summary.total_scans === 0 ? (
+            <div className="py-6 text-center space-y-2 text-slate-400">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                <Layers className="w-6 h-6" />
+              </div>
+              <p className="text-xs font-semibold">Belum ada data pemindaian pada periode ini.</p>
             </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-around gap-4 py-1">
+                {/* Donut Chart */}
+                <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90 transform" viewBox={`0 0 ${size} ${size}`}>
+                    <circle
+                      cx={center}
+                      cy={center}
+                      r={radius}
+                      className="text-amber-500"
+                      strokeWidth={strokeWidth}
+                      stroke="currentColor"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx={center}
+                      cy={center}
+                      r={radius}
+                      className="text-[#2D7A38] transition-all duration-700"
+                      strokeWidth={strokeWidth}
+                      strokeDasharray={circumference}
+                      strokeDashoffset={upcycleOffset}
+                      strokeLinecap="butt"
+                      stroke="currentColor"
+                      fill="transparent"
+                    />
+                  </svg>
+                </div>
 
-            {/* Label Persentase */}
-            <div className="space-y-3">
-              <div className="flex items-baseline space-x-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-[#2D7A38]">
-                  {summary.upcycle_percent}%
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-700">Upcycle</span>
+                {/* Label Persentase */}
+                <div className="space-y-3">
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-xl sm:text-2xl font-extrabold text-[#2D7A38]">
+                      {summary.upcycle_percent}%
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-700">Upcycle (Resep)</span>
+                  </div>
+
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-xl sm:text-2xl font-extrabold text-amber-600">
+                      {summary.compost_percent}%
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-700">Kompos / POC</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-baseline space-x-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-amber-600">
-                  {summary.compost_percent}%
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-700">Kompos</span>
-              </div>
-            </div>
-          </div>
+              {/* Legenda */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#2D7A38]" />
+                    <span className="font-medium text-slate-600">Upcycle Pangan</span>
+                  </div>
+                  <span className="font-bold text-slate-800">{summary.food_saved_kg} kg</span>
+                </div>
 
-          {/* Legenda Ringkas */}
-          <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2D7A38]" />
-                <span className="font-medium text-slate-600">Upcycle</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="font-medium text-slate-600">Kompos Organik</span>
+                  </div>
+                  <span className="font-bold text-slate-800">{summary.food_composted_kg} kg</span>
+                </div>
               </div>
-              <span className="font-bold text-slate-800">{currentSavedKg} kg</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className="font-medium text-slate-600">Kompos</span>
-              </div>
-              <span className="font-bold text-slate-800">{currentCompostKg} kg</span>
-            </div>
-          </div>
+            </>
+          )}
         </section>
 
         {/* 4. BAGIAN: EMISI TERCEGAH */}
         <section className="space-y-2.5">
           <h2 className="text-sm sm:text-base font-bold text-[#0F172A] tracking-tight">
-            Emisi Tercegah
+            Emisi Lingkungan Tercegah
           </h2>
 
           <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -357,21 +403,21 @@ export default function LaporanPage() {
             <div className="bg-white border border-slate-100 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-0.5 text-center">
               <span className="text-xs font-bold text-slate-600 block">CH₄ (Metana)</span>
               <div className="text-lg sm:text-xl font-black text-[#0F172A]">
-                {currentCh4} <span className="text-xs font-normal text-slate-400">g</span>
+                {summary.ch4_prevented_g} <span className="text-xs font-normal text-slate-400">g</span>
               </div>
               <p className="text-[11px] text-slate-400 font-medium">
-                ≈ {currentForest} m² hutan
+                ≈ {summary.forest_absorbed_sqm} m² serapan hutan
               </p>
             </div>
 
             {/* Kartu CO2e */}
             <div className="bg-white border border-slate-100 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-0.5 text-center">
-              <span className="text-xs font-bold text-slate-600 block">CO₂e</span>
+              <span className="text-xs font-bold text-slate-600 block">CO₂e Ekuivalen</span>
               <div className="text-lg sm:text-xl font-black text-[#0F172A]">
-                {currentCo2e} <span className="text-xs font-normal text-slate-400">g</span>
+                {summary.co2e_prevented_g} <span className="text-xs font-normal text-slate-400">g</span>
               </div>
               <p className="text-[11px] text-slate-400 font-medium">
-                ≈ {currentTrees} pohon
+                ≈ {summary.trees_absorbed} pohon/tahun
               </p>
             </div>
           </div>
@@ -380,17 +426,17 @@ export default function LaporanPage() {
         {/* 5. BAGIAN: PENGHEMATAN */}
         <section className="space-y-2.5">
           <h2 className="text-sm sm:text-base font-bold text-[#0F172A] tracking-tight">
-            Penghematan
+            Estimasi Nilai Penghematan Pangan
           </h2>
 
           <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-2xs flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-xs font-bold text-slate-600 block">Total Penghematan</span>
+              <span className="text-xs font-bold text-slate-600 block">Total Penghematan Finansial</span>
               <div className="text-xl sm:text-2xl font-extrabold text-[#2D7A38]">
-                Rp {currentSavings.toLocaleString('id-ID')}
+                Rp {summary.total_financial_saved_idr.toLocaleString('id-ID')}
               </div>
               <span className="text-[11px] text-slate-400 font-medium block">
-                {filterType === 'tahunan' ? 'Tahun ini' : filterType === 'tanggal' ? 'Hari ini' : 'Bulan ini'}
+                Berdasarkan {summary.total_scans} bahan yang dianalisis
               </span>
             </div>
 

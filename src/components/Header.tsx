@@ -2,8 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { MQTTStatus } from '@/lib/mqtt';
+import { useAuth } from '@/lib/auth-context';
+import { LogOut } from 'lucide-react';
 
 interface HeaderProps {
   mqttStatus: MQTTStatus;
@@ -12,6 +14,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
 
   const navLinks = [
     { href: '/beranda', label: 'Beranda' },
@@ -19,6 +23,11 @@ export const Header: React.FC<HeaderProps> = () => {
     { href: '/laporan', label: 'Laporan Dampak' },
     { href: '/profil', label: 'Profil' }
   ] as const;
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/masuk');
+  };
 
   return (
     <header className="w-full bg-white border-b border-[#E2E8F0] sticky top-0 z-30">
@@ -63,20 +72,34 @@ export const Header: React.FC<HeaderProps> = () => {
             })}
           </nav>
 
-          {/* Tombol Aksi Autentikasi Pengguna (Masuk & Daftar) */}
+          {/* Autentikasi Pengguna: Logout */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <Link
-              href="/masuk"
-              className="text-xs sm:text-sm font-bold text-[#334155] hover:text-[#0F172A] px-2.5 sm:px-3 py-1.5 transition cursor-pointer"
-            >
-              Masuk
-            </Link>
-            <Link
-              href="/daftar"
-              className="bg-[#2D7A38] hover:bg-[#23632D] text-white text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl transition cursor-pointer shadow-xs"
-            >
-              Daftar
-            </Link>
+            {user ? (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex items-center space-x-1.5 text-xs sm:text-sm font-bold text-slate-500 hover:text-red-600 px-3 py-2 rounded-xl hover:bg-red-50 transition cursor-pointer"
+                title="Keluar Akun"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Keluar</span>
+              </button>
+            ) : (
+              <>
+                <Link
+                  href="/masuk"
+                  className="text-xs sm:text-sm font-bold text-[#334155] hover:text-[#0F172A] px-2.5 sm:px-3 py-1.5 transition cursor-pointer"
+                >
+                  Masuk
+                </Link>
+                <Link
+                  href="/daftar"
+                  className="bg-[#2D7A38] hover:bg-[#23632D] text-white text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl transition cursor-pointer shadow-xs"
+                >
+                  Daftar
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

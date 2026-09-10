@@ -3,23 +3,47 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Lock, Eye, EyeOff, Building, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, ArrowRight, Check, X } from 'lucide-react';
 
 export default function DaftarPage() {
   const router = useRouter();
+  const { signUp } = useAuth();
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [institution, setInstitution] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Aturan Validasi Kata Sandi Kuat
+  const hasMinLength = password.length >= 6;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password);
+  const isPasswordValid = hasMinLength && hasUppercase && hasSymbol;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !email || !password || !confirmPassword) {
       setErrorMsg('Harap lengkapi semua kolom formulir pendaftaran.');
+      return;
+    }
+
+    if (!hasMinLength) {
+      setErrorMsg('Kata sandi harus terdiri dari minimal 6 karakter.');
+      return;
+    }
+
+    if (!hasUppercase) {
+      setErrorMsg('Kata sandi harus mengandung setidaknya 1 huruf besar (kapital A-Z).');
+      return;
+    }
+
+    if (!hasSymbol) {
+      setErrorMsg('Kata sandi harus mengandung setidaknya 1 karakter simbol (contoh: !@#$%^&*).');
       return;
     }
 
@@ -31,11 +55,19 @@ export default function DaftarPage() {
     setLoading(true);
     setErrorMsg('');
 
-    // Simulasi pendaftaran
-    setTimeout(() => {
+    const res = await signUp(email, password, {
+      nama_lengkap: fullName
+    });
+
+    if (res.error) {
+      setErrorMsg(res.error);
       setLoading(false);
-      router.push('/beranda');
-    }, 1000);
+    } else {
+      setSuccessMsg('Pendaftaran berhasil! Mengalihkan ke Beranda...');
+      setTimeout(() => {
+        router.push('/beranda');
+      }, 900);
+    }
   };
 
   return (
@@ -63,13 +95,20 @@ export default function DaftarPage() {
               Daftar Akun CirculSense
             </h1>
             <p className="text-xs sm:text-sm text-slate-500">
-              Bergabung bersama gerakan penyelamatan pangan & mitigasi emisi gas rumah kaca
+              Mulai Pemantauan Kesegaran Bahan Makanan
             </p>
           </div>
 
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl">
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl animate-in fade-in duration-150">
               {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] text-xs font-semibold rounded-xl flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{successMsg}</span>
             </div>
           )}
 
@@ -83,7 +122,7 @@ export default function DaftarPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. M. Irfan Al-Farizi"
+                  placeholder="Masukkan nama lengkap Anda"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2D7A38] text-xs sm:text-sm"
                   required
                 />
@@ -99,24 +138,9 @@ export default function DaftarPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@institusi.ac.id"
+                  placeholder="Masukkan alamat email aktif"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2D7A38] text-xs sm:text-sm"
                   required
-                />
-              </div>
-            </div>
-
-            {/* Field Institusi / Organisasi */}
-            <div className="space-y-1">
-              <label className="font-bold text-[#334155] block">Institusi / Komunitas / Lab:</label>
-              <div className="relative flex items-center">
-                <Building className="w-4 h-4 text-slate-400 absolute left-3.5" />
-                <input
-                  type="text"
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
-                  placeholder="e.g. Politeknik Elektronika Negeri Surabaya"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2D7A38] text-xs sm:text-sm"
                 />
               </div>
             </div>
@@ -131,7 +155,7 @@ export default function DaftarPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimal 8 karakter"
+                    placeholder="Min. 6 karakter, huruf besar & simbol"
                     className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2D7A38] text-xs sm:text-sm"
                     required
                   />
@@ -153,7 +177,7 @@ export default function DaftarPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Ulangi kata sandi"
+                    placeholder="Ketik ulang kata sandi"
                     className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2D7A38] text-xs sm:text-sm"
                     required
                   />
@@ -161,13 +185,42 @@ export default function DaftarPage() {
               </div>
             </div>
 
-            {/* Checklist Persyaratan */}
-            <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1 text-[11px] text-[#166534]">
-              <div className="flex items-center space-x-1.5 font-bold">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Akun Riset Terhubung dengan Telemetri MQTT & Supabase</span>
+            {/* Indikator Checklist Kriteria Kata Sandi Kuat */}
+            {password.length > 0 && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 animate-in fade-in duration-150">
+                <div className="text-[11px] font-bold text-slate-600">
+                  Syarat Keamanan Kata Sandi:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px]">
+                  <div
+                    className={`flex items-center space-x-1 font-semibold ${
+                      hasMinLength ? 'text-[#16A34A]' : 'text-slate-400'
+                    }`}
+                  >
+                    {hasMinLength ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                    <span>Min. 6 karakter</span>
+                  </div>
+
+                  <div
+                    className={`flex items-center space-x-1 font-semibold ${
+                      hasUppercase ? 'text-[#16A34A]' : 'text-slate-400'
+                    }`}
+                  >
+                    {hasUppercase ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                    <span>Huruf besar (A-Z)</span>
+                  </div>
+
+                  <div
+                    className={`flex items-center space-x-1 font-semibold ${
+                      hasSymbol ? 'text-[#16A34A]' : 'text-slate-400'
+                    }`}
+                  >
+                    {hasSymbol ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                    <span>Simbol (!@#$%)</span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Tombol Submit Daftar */}
             <button
@@ -175,7 +228,7 @@ export default function DaftarPage() {
               disabled={loading}
               className="w-full bg-[#2D7A38] hover:bg-[#23632D] text-white font-bold py-3.5 px-4 rounded-xl transition flex items-center justify-center space-x-2 text-xs sm:text-sm shadow-xs cursor-pointer disabled:opacity-60"
             >
-              <span>{loading ? 'Mendaftarkan Akun...' : 'Daftar Sekarang'}</span>
+              <span>{loading ? 'Mendaftarkan Akun ke Supabase...' : 'Daftar Sekarang'}</span>
               {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
@@ -191,7 +244,7 @@ export default function DaftarPage() {
 
       {/* Footer */}
       <footer className="w-full py-4 text-center text-xs text-slate-400 border-t border-slate-100 bg-white">
-        © 2026 CirculSense AI • Politeknik Elektronika Negeri Surabaya (PENS)
+        © 2026 CirculSense AI • Sistem Cerdas Fusi Sensor & Evaluasi Pangan
       </footer>
     </main>
   );

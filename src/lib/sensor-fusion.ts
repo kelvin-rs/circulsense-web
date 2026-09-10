@@ -239,6 +239,9 @@ export const RECIPE_CATALOG: Record<string, { layu: UpcyclingRecommendation; seg
  * Fuses visual image feature confidence with gas sensor telemetry (MQ-4 & MQ-135)
  */
 export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult {
+  const ch4 = gas.ch4_ppm ?? 0;
+  const aqi = gas.aqi_ppm ?? 0;
+
   // 1. Normalize Visual Score [0, 1]
   const vScoreNorm = Math.min(Math.max((visual.visual_score - 1) / 4, 0), 1);
 
@@ -247,10 +250,10 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   // 1.0 - 2.5 ppm -> 0.6 (Warning / Overripe)
   // > 2.5 ppm -> 0.1 (Rotten / Decomposition)
   let mq4ScoreNorm = 1.0;
-  if (gas.ch4_ppm > 2.5) {
-    mq4ScoreNorm = Math.max(0, 1 - (gas.ch4_ppm / 5));
-  } else if (gas.ch4_ppm > 1.0) {
-    mq4ScoreNorm = 0.5 + (0.4 * ((2.5 - gas.ch4_ppm) / 1.5));
+  if (ch4 > 2.5) {
+    mq4ScoreNorm = Math.max(0, 1 - (ch4 / 5));
+  } else if (ch4 > 1.0) {
+    mq4ScoreNorm = 0.5 + (0.4 * ((2.5 - ch4) / 1.5));
   }
 
   // 3. Normalize MQ-135 Air Quality / NH3 Score [0, 1]
@@ -258,10 +261,10 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   // 50 - 120 ppm -> 0.55 (Moderate VOCs)
   // > 120 ppm -> 0.1 (High Ammonia / Spoilage)
   let mq135ScoreNorm = 1.0;
-  if (gas.aqi_ppm > 120) {
-    mq135ScoreNorm = Math.max(0, 1 - (gas.aqi_ppm / 250));
-  } else if (gas.aqi_ppm > 50) {
-    mq135ScoreNorm = 0.5 + (0.4 * ((120 - gas.aqi_ppm) / 70));
+  if (aqi > 120) {
+    mq135ScoreNorm = Math.max(0, 1 - (aqi / 250));
+  } else if (aqi > 50) {
+    mq135ScoreNorm = 0.5 + (0.4 * ((120 - aqi) / 70));
   }
 
   // 4. Weighted Multimodal Fusion (0.4 Visual + 0.3 MQ-4 + 0.3 MQ-135)
@@ -280,7 +283,7 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     status = 'Segar';
     badgeColor = 'green';
     statusSummary = 'Kualitas prima, aman untuk konsumsi langsung atau olahan segar';
-  } else if (calculatedScore <= 1 || gas.ch4_ppm >= 2.8 || gas.aqi_ppm >= 140) {
+  } else if (calculatedScore <= 1 || ch4 >= 2.8 || aqi >= 140) {
     status = 'Busuk';
     calculatedScore = 1;
     badgeColor = 'red';
@@ -297,8 +300,8 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   }
 
   // Gas summary categorizations
-  const ch4_status: 'Rendah' | 'Sedang' | 'Tinggi' = gas.ch4_ppm < 1.0 ? 'Rendah' : gas.ch4_ppm < 2.5 ? 'Sedang' : 'Tinggi';
-  const aqi_status: 'Baik' | 'Sedang' | 'Tinggi' = gas.aqi_ppm < 50 ? 'Baik' : gas.aqi_ppm < 120 ? 'Sedang' : 'Tinggi';
+  const ch4_status: 'Rendah' | 'Sedang' | 'Tinggi' = ch4 < 1.0 ? 'Rendah' : ch4 < 2.5 ? 'Sedang' : 'Tinggi';
+  const aqi_status: 'Baik' | 'Sedang' | 'Tinggi' = aqi < 50 ? 'Baik' : aqi < 120 ? 'Sedang' : 'Tinggi';
   const visual_status: 'Segar' | 'Layu' | 'Berkerut' | 'Busuk' = 
     status === 'Segar' ? 'Segar' : status === 'Busuk' ? 'Busuk' : (visual.defects.includes('Kulit Berkerut') ? 'Berkerut' : 'Layu');
 
@@ -325,11 +328,20 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     status_badge_color: badgeColor,
     status_summary: statusSummary,
     gas_summary: {
-      ch4_ppm: gas.ch4_ppm,
+      ch4_ppm: ch4,
       ch4_status,
-      aqi_ppm: gas.aqi_ppm,
+      aqi_ppm: aqi,
       aqi_status,
-      visual_status
+      visual_status,
+      temperature: gas.temperature,
+      humidity: gas.humidity,
+      color_hex: gas.color_hex,
+      color_name: gas.color_name,
+      color_r: gas.color_r,
+      color_g: gas.color_g,
+      color_b: gas.color_b,
+      color_lux: gas.color_lux,
+      color_temp: gas.color_temp
     },
     recommendation,
     saved_weight_kg,

@@ -149,37 +149,68 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
 
           <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-xs space-y-4">
             <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
-              Rincian Parameter Multimodal
+              Rincian Parameter Fusi Multimodal
             </h4>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-50 rounded-2xl p-4 border border-[#E2E8F0] text-center">
-                <span className="text-xs text-[#64748B] font-semibold block">Gas Metana (MQ-4)</span>
-                <div className="text-lg font-bold text-[#0F172A] mt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* MQ-4 */}
+              <div className="bg-slate-50 rounded-2xl p-3.5 border border-[#E2E8F0] text-center">
+                <span className="text-[11px] text-[#64748B] font-semibold block">Gas Metana (MQ-4)</span>
+                <div className="text-base font-bold text-[#0F172A] mt-1">
                   {result.gas_summary.ch4_ppm} <span className="text-xs font-normal text-[#64748B]">ppm</span>
                 </div>
-                <span className="inline-block mt-1 text-[11px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md">
+                <span className="inline-block mt-1 text-[10px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md">
                   {result.gas_summary.ch4_status}
                 </span>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-4 border border-[#E2E8F0] text-center">
-                <span className="text-xs text-[#64748B] font-semibold block">Kualitas (MQ-135)</span>
-                <div className="text-lg font-bold text-[#0F172A] mt-1">
+              {/* MQ-135 */}
+              <div className="bg-slate-50 rounded-2xl p-3.5 border border-[#E2E8F0] text-center">
+                <span className="text-[11px] text-[#64748B] font-semibold block">Kualitas (MQ-135)</span>
+                <div className="text-base font-bold text-[#0F172A] mt-1">
                   {result.gas_summary.aqi_ppm} <span className="text-xs font-normal text-[#64748B]">AQI</span>
                 </div>
-                <span className="inline-block mt-1 text-[11px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md">
+                <span className="inline-block mt-1 text-[10px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md">
                   {result.gas_summary.aqi_status}
                 </span>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-4 border border-[#E2E8F0] text-center">
-                <span className="text-xs text-[#64748B] font-semibold block">Visi AI (YOLO)</span>
+              {/* DHT22 */}
+              <div className="bg-slate-50 rounded-2xl p-3.5 border border-[#E2E8F0] text-center">
+                <span className="text-[11px] text-[#64748B] font-semibold block">Suhu & RH (DHT22)</span>
+                <div className="text-base font-bold text-[#0F172A] mt-1">
+                  {result.gas_summary.temperature ? result.gas_summary.temperature.toFixed(1) : '27.2'}°C
+                </div>
+                <span className="inline-block mt-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                  {result.gas_summary.humidity ? result.gas_summary.humidity.toFixed(0) : '68'}% RH
+                </span>
+              </div>
+
+              {/* TCS34725 */}
+              <div className="bg-slate-50 rounded-2xl p-3.5 border border-[#E2E8F0] text-center">
+                <span className="text-[11px] text-[#64748B] font-semibold block">Warna (TCS34725)</span>
+                <div className="flex items-center justify-center space-x-1.5 mt-1">
+                  <div
+                    className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0"
+                    style={{ backgroundColor: result.gas_summary.color_hex || '#E44034' }}
+                  />
+                  <span className="font-mono text-xs font-bold text-[#0F172A]">
+                    {result.gas_summary.color_hex || '#E44034'}
+                  </span>
+                </div>
+                <span className="inline-block mt-1 text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200 truncate max-w-full">
+                  {result.gas_summary.color_name || 'Merah Matang'}
+                </span>
+              </div>
+
+              {/* Visi AI (YOLO) */}
+              <div className="col-span-2 sm:col-span-2 bg-slate-50 rounded-2xl p-3.5 border border-[#E2E8F0] text-center">
+                <span className="text-[11px] text-[#64748B] font-semibold block">Visi AI (YOLO Edge)</span>
                 <div className="text-sm font-bold text-[#0F172A] mt-1 truncate">
                   {result.gas_summary.visual_status}
                 </div>
-                <span className="inline-block mt-1 text-[11px] font-bold text-[#1E293B] bg-slate-200 px-2 py-0.5 rounded-md">
-                  {result.category}
+                <span className="inline-block mt-1 text-[10px] font-bold text-[#1E293B] bg-slate-200 px-2 py-0.5 rounded-md">
+                  Kategori {result.category}
                 </span>
               </div>
             </div>

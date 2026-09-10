@@ -18,14 +18,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const handleCenterClick = () => {
     if (onTriggerCamera) {
       onTriggerCamera();
-    } else if (pathname !== '/beranda' && pathname !== '/') {
-      router.push('/beranda');
     } else {
       const camBtn = document.getElementById('btn-activate-camera');
       if (camBtn) {
         camBtn.click();
       } else {
-        window.location.href = '/beranda#camera-viewport';
+        router.push('/beranda?buka_kamera=true');
       }
     }
   };

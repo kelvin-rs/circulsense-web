@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
+import { useAuth } from '@/lib/auth-context';
 import { mqttService } from '@/lib/mqtt';
 import {
   User,
   Mail,
-  Building,
   Phone,
+  Briefcase,
   ArrowLeft,
   Save,
   CheckCircle2,
@@ -19,22 +20,51 @@ import {
 
 export default function EditProfilePage() {
   const router = useRouter();
+  const { user, profile, updateProfile } = useAuth();
   const [gasData] = useState(mqttService.getCurrentData());
 
-  const [fullName, setFullName] = useState('Kelvin Rohmat Setiaji');
-  const [email, setEmail] = useState('kelvin.rohmat@student.pens.ac.id');
-  const [phone, setPhone] = useState('0812-3456-7890');
-  const [institution, setInstitution] = useState('Politeknik Elektronika Negeri Surabaya (PENS)');
-  const [role, setRole] = useState('Lead Researcher & IoT Engineer');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.nama_lengkap || '');
+      setEmail(profile.email || user?.email || '');
+      setPhone(profile.nomor_telepon || '');
+      setRole(profile.peran || 'Pengguna / Peneliti');
+    } else if (user) {
+      setFullName(user.user_metadata?.nama_lengkap || user.email?.split('@')[0] || '');
+      setEmail(user.email || '');
+      setRole(user.user_metadata?.peran || 'Pengguna / Peneliti');
+    }
+  }, [user, profile]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => {
-      setIsSaved(false);
-      router.push('/profil');
-    }, 900);
+    if (!fullName) {
+      setErrorMsg('Nama lengkap tidak boleh kosong');
+      return;
+    }
+
+    const res = await updateProfile({
+      nama_lengkap: fullName,
+      nomor_telepon: phone,
+      peran: role
+    });
+
+    if (res.error) {
+      setErrorMsg(res.error);
+    } else {
+      setIsSaved(true);
+      setTimeout(() => {
+        setIsSaved(false);
+        router.push('/profil');
+      }, 900);
+    }
   };
 
   return (
@@ -63,6 +93,12 @@ export default function EditProfilePage() {
           </div>
         </div>
 
+        {errorMsg && (
+          <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl">
+            {errorMsg}
+          </div>
+        )}
+
         {isSaved && (
           <div className="p-3.5 bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] text-xs font-bold rounded-xl flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4" />
@@ -86,7 +122,7 @@ export default function EditProfilePage() {
                 <Camera className="w-4 h-4" />
               </button>
             </div>
-            <span className="text-xs font-medium text-[#64748B]">Ketuk kamera untuk ubah foto</span>
+            <span className="text-xs font-medium text-[#64748B]">Foto Profil Akun</span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
@@ -99,23 +135,24 @@ export default function EditProfilePage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Masukkan nama lengkap Anda"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#CBD5E1] rounded-xl text-[#0F172A] font-bold focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
                   required
                 />
               </div>
             </div>
 
-            {/* Email */}
+            {/* Email (Readonly) */}
             <div className="space-y-1.5">
-              <label className="font-bold text-[#334155] block">Alamat Email:</label>
+              <label className="font-bold text-[#334155] block">Alamat Email (Akun Auth):</label>
               <div className="relative flex items-center">
                 <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#CBD5E1] rounded-xl text-[#0F172A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
-                  required
+                  disabled
+                  placeholder="Alamat email akun terdaftar"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-100 border border-[#CBD5E1] rounded-xl text-slate-500 font-semibold cursor-not-allowed"
                 />
               </div>
             </div>
@@ -129,20 +166,7 @@ export default function EditProfilePage() {
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#CBD5E1] rounded-xl text-[#0F172A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
-                />
-              </div>
-            </div>
-
-            {/* Institution */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-[#334155] block">Instansi / Universitas:</label>
-              <div className="relative flex items-center">
-                <Building className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
-                <input
-                  type="text"
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="Masukkan nomor kontak Anda (contoh: 081234567890)"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#CBD5E1] rounded-xl text-[#0F172A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
                 />
               </div>
@@ -150,13 +174,17 @@ export default function EditProfilePage() {
 
             {/* Role */}
             <div className="space-y-1.5">
-              <label className="font-bold text-[#334155] block">Peran / Posisi dalam Riset:</label>
-              <input
-                type="text"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-[#CBD5E1] rounded-xl text-[#0F172A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
-              />
+              <label className="font-bold text-[#334155] block">Peran / Profesi:</label>
+              <div className="relative flex items-center">
+                <Briefcase className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="Masukkan peran Anda (contoh: Peneliti / Pengguna Umum)"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#CBD5E1] rounded-xl text-[#0F172A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#2D7A38]"
+                />
+              </div>
             </div>
 
             <div className="pt-4 flex items-center space-x-3">
@@ -171,7 +199,7 @@ export default function EditProfilePage() {
                 className="flex-1 bg-[#2D7A38] hover:bg-[#23632D] text-white font-bold py-3.5 rounded-xl flex items-center justify-center space-x-2 transition cursor-pointer shadow-xs"
               >
                 <Save className="w-4 h-4" />
-                <span>Simpan Profil</span>
+                <span>Simpan Perubahan</span>
               </button>
             </div>
           </form>

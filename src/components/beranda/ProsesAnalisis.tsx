@@ -16,21 +16,21 @@ interface StepItem {
   sublabel?: string;
 }
 
-const STEPS: StepItem[] = [
-  { id: 1, label: 'Pengambilan Data Gas Metana (MQ-4)', sublabel: 'Transmisi telemetri ESP32 via MQTT' },
-  { id: 2, label: 'Pengambilan Data Kualitas Udara (MQ-135)', sublabel: 'Analisis konsentrasi VOC & amonia' },
-  { id: 3, label: 'Ekstraksi Citra Visual Kamera', sublabel: 'Resolusi optik lensa ponsel' },
-  { id: 4, label: 'Inferensi Deteksi Cacat Visual (YOLO)', sublabel: 'Komputasi Edge AI pada browser' },
-  { id: 5, label: 'Algoritma Fusi Sensor Multimodal', sublabel: 'Normalisasi dan pembobotan parameter' },
-  { id: 6, label: 'Klasifikasi & Rekomendasi Upcycling', sublabel: 'Penentuan status kelayakan konsumsi' }
-];
-
 export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
   gasData,
   visualData,
   onCancel,
   onComplete
 }) => {
+  const STEPS: StepItem[] = [
+    { id: 1, label: 'Pengambilan Telemetri Bio-Gas (MQ-4 & MQ-135)', sublabel: 'Transmisi konsentrasi CH4 & amonia via MQTT' },
+    { id: 2, label: 'Pembacaan Termal & Kelembapan (DHT22)', sublabel: `Suhu ${gasData?.temperature ? gasData.temperature.toFixed(1) : '27.2'}°C, RH ${gasData?.humidity ? gasData.humidity.toFixed(0) : '68'}%` },
+    { id: 3, label: 'Spektrometri Kroma Permukaan (TCS34725)', sublabel: `Analisis kanal RGB & Lux (${gasData?.color_hex || '#E44034'})` },
+    { id: 4, label: 'Ekstraksi Visual & Cacat Pangan (YOLO AI)', sublabel: 'Komputasi Edge AI pada browser' },
+    { id: 5, label: 'Algoritma Fusi Sensor Multimodal', sublabel: 'Normalisasi dan pembobotan parameter gabungan' },
+    { id: 6, label: 'Klasifikasi & Rekomendasi Upcycling', sublabel: 'Penentuan status kelayakan konsumsi optimal' }
+  ];
+
   const [progress, setProgress] = useState<number>(10);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
 
