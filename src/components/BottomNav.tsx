@@ -81,7 +81,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       <div className="flex items-center space-x-6">
         {rightTabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = pathname === tab.href || (tab.href === '/laporan' && pathname === '/report');
+          const isActive = pathname === tab.href;
 
           return (
             <Link

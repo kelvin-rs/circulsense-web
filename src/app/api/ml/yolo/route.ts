@@ -45,7 +45,11 @@ export async function POST(request: NextRequest) {
         .select('id')
         .limit(1)
         .maybeSingle();
-      if (defaultUser) targetUserId = defaultUser.id;
+      if (defaultUser) {
+        targetUserId = defaultUser.id;
+      } else {
+        targetUserId = 'cf9ef20e-2c03-4f8e-aa4b-636913f0f627';
+      }
     }
 
     if (!targetUserId || !nama_bahan_terdeteksi) {

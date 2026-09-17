@@ -23,12 +23,12 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
   onComplete
 }) => {
   const STEPS: StepItem[] = [
-    { id: 1, label: 'Pengambilan Telemetri Bio-Gas (MQ-4 & MQ-135)', sublabel: 'Transmisi konsentrasi CH4 & amonia via MQTT' },
-    { id: 2, label: 'Pembacaan Termal & Kelembapan (DHT22)', sublabel: `Suhu ${gasData?.temperature ? gasData.temperature.toFixed(1) : '27.2'}°C, RH ${gasData?.humidity ? gasData.humidity.toFixed(0) : '68'}%` },
-    { id: 3, label: 'Spektrometri Kroma Permukaan (TCS34725)', sublabel: `Analisis kanal RGB & Lux (${gasData?.color_hex || '#E44034'})` },
-    { id: 4, label: 'Ekstraksi Visual & Cacat Pangan (YOLO AI)', sublabel: 'Komputasi Edge AI pada browser' },
-    { id: 5, label: 'Algoritma Fusi Sensor Multimodal', sublabel: 'Normalisasi dan pembobotan parameter gabungan' },
-    { id: 6, label: 'Klasifikasi & Rekomendasi Upcycling', sublabel: 'Penentuan status kelayakan konsumsi optimal' }
+    { id: 1, label: 'Ekstraksi Visual & Indikator Kematangan Internal (YOLO AI)', sublabel: 'Analisis morfologi dan tekstur buah Stroberi' },
+    { id: 2, label: 'Validasi Kroma Spektral Sensor Fisik (TCS34725)', sublabel: gasData?.color_hex ? `Koreksi iluminasi via kroma (${gasData.color_hex})` : 'Sensor kroma belum aktif (Nilai 0)' },
+    { id: 3, label: 'Analisis Stres Termal & Kelembapan (DHT22)', sublabel: gasData?.temperature ? `Suhu ${gasData.temperature.toFixed(1)}°C, RH ${gasData.humidity ? gasData.humidity.toFixed(0) : '0'}%` : 'Sensor DHT22 belum aktif (Nilai 0°C)' },
+    { id: 4, label: 'Deteksi Emisi Gas Dini Dekomposisi (MQ-4 & MQ-135)', sublabel: gasData?.ch4_ppm ? `CH4 ${gasData.ch4_ppm.toFixed(2)} ppm • AQI ${gasData.aqi_ppm ?? 0}` : 'Sensor MQ belum aktif (Nilai 0 ppm)' },
+    { id: 5, label: 'Prediksi Sisa Umur Simpan (Shelf-Life Engine)', sublabel: 'Estimasi hitungan jam & hari simpan objektif' },
+    { id: 6, label: 'Rekomendasi Aksi Inventaris & Strategi Penjualan Pedagang', sublabel: 'Penentuan etalase depan, stok gudang, atau diskon cepat' }
   ];
 
   const [progress, setProgress] = useState<number>(10);

@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Jika tetap tidak ada target user, ambil user pertama atau tolak
+    // Jika tetap tidak ada target user, ambil user pertama atau gunakan akun demo default
     if (!targetUserId) {
       const { data: defaultUser } = await supabase
         .from('pengguna')
@@ -87,10 +87,7 @@ export async function POST(request: NextRequest) {
       if (defaultUser) {
         targetUserId = defaultUser.id;
       } else {
-        return NextResponse.json(
-          { error: 'Pengguna tidak ditemukan. Sertakan id_pengguna atau api_key perangkat yang valid.' },
-          { status: 400, headers: corsHeaders }
-        );
+        targetUserId = 'cf9ef20e-2c03-4f8e-aa4b-636913f0f627';
       }
     }
 

@@ -1,312 +1,308 @@
-import { GasData, VisualData, FusionResult, UpcyclingRecommendation, FreshnessStatus } from '@/types/circulsense';
+import { 
+  GasData, 
+  VisualData, 
+  FusionResult, 
+  UpcyclingRecommendation, 
+  FreshnessStatus,
+  RipenessStage,
+  DiseaseStatus,
+  InventoryAction,
+  PricingAction,
+  ColorValidationDetail,
+  ShelfLifeDetail
+} from '@/types/circulsense';
 
-// Catalog of Upcycling Recommendations
+// Katalog Rekomendasi Penyelamatan Khusus Buah Stroberi
 export const RECIPE_CATALOG: Record<string, { layu: UpcyclingRecommendation; segar: UpcyclingRecommendation; busuk: UpcyclingRecommendation }> = {
-  Tomat: {
+  Stroberi: {
     layu: {
-      id: 'rec_tomato_sauce',
-      type: 'Resep Masakan',
-      title: 'Saus Tomat Homemade',
-      subtitle: 'Manfaatkan tomat layu untuk membuat saus lezat tanpa bahan pengawet.',
-      prep_time: '25 menit',
+      id: 'rec_strawberry_jam',
+      type: 'Pengolahan UMKM',
+      title: 'Selai Stroberi Homemade (Artisan Strawberry Jam)',
+      subtitle: 'Selamatkan stok stroberi yang mulai lembek menjadi selai premium bernilai jual tinggi.',
+      prep_time: '30 menit',
       difficulty: 'Mudah',
-      description: 'Tomat yang mulai lembek dan keriput memiliki kandungan gula alami yang terkonsentrasi, sangat cocok dijadikan saus pasta, marinara, atau dasar bumbu pizza daripada dibuang.',
+      description: 'Stroberi yang memasuki fase lewat matang (overripe) memiliki kadar gula fruktosa dan aroma pektin paling kuat. Sangat optimal dimasak menjadi selai artisan atau compote kue daripada dibuang menjadi sampah.',
       ingredients: [
-        '500g Tomat Layu / Sangat Matang',
-        '3 siung Bawang Putih, cincang halus',
-        '1/2 buah Bawang Bombay, cincang',
-        '1 sdm Minyak Zaitun atau Minyak Sayur',
-        '1 sdt Garam & 1/2 sdt Lada Bubuk',
-        '1 sdt Gula Pasir & Daun Basil/Oregano secukupnya'
+        '1 kg Stroberi Layu / Terlalu Matang',
+        '350g Gula Pasir (bisa disesuaikan)',
+        '2 sdm Air Perasan Lemon / Jeruk Nipis (pengawet asam alami & pektin booster)',
+        '1/4 sdt Garam Halus'
       ],
       steps: [
-        'Cuci bersih tomat layu, buang pangkal tangkainya, lalu rebus selama 2 menit dan kupas kulitnya yang telah melunak.',
-        'Haluskan daging tomat dengan blender atau garpu kasar.',
-        'Tumis bawang putih dan bawang bombay dengan sedikit minyak hingga harum keemasan.',
-        'Tuangkan puree tomat ke dalam wajan, tambahkan garam, lada, gula, dan oregano.',
-        'Masak dengan api kecil selama 15-20 menit hingga kuah mengental dan aroma matang sempurna.',
-        'Simpan dalam toples kaca kedap udara di kulkas untuk masa simpan hingga 2 minggu.'
+        'Cuci cepat stroberi dengan air mengalir dingin, buang daun kelopak hijau dan bagian yang terlalu lembek.',
+        'Potong stroberi menjadi 2 atau 4 bagian, masukkan ke dalam panci anti-lengket bersama gula pasir.',
+        'Diamkan 10 menit hingga air alami stroberi keluar (maceration).',
+        'Masak dengan api sedang sambil diaduk perlahan dan hancurkan buah menggunakan sendok kayu.',
+        'Tambahkan air perasan lemon, kecilkan api dan aduk selama 20 menit hingga mengental dan berbuih pekat.',
+        'Uji kekentalan di atas piring dingin. Tuang selai panas ke dalam jar kaca steril, tutup rapat dan simpan (tahan hingga 3 bulan).'
       ],
-      tips: 'Tambahkan perasan sedikit jeruk nipis untuk penyeimbang rasa segar alami.',
-      image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80'
+      tips: 'Jual selai ini sebagai produk olahan bernilai tambah Rp 35.000 - Rp 50.000 per toples kepada pelanggan toko.',
+      image_url: 'https://images.unsplash.com/photo-1596797038530-2c107229654b?auto=format&fit=crop&w=600&q=80'
     },
     segar: {
-      id: 'rec_tomato_salad',
-      type: 'Resep Masakan',
-      title: 'Salad Tomat Segar & Dressing Madu',
-      subtitle: 'Tomat segar renyah kaya antioksidan likopen.',
+      id: 'rec_strawberry_fresh_retail',
+      type: 'Pengolahan UMKM',
+      title: 'Display Etalase Premium & Paket Stroberi Segar',
+      subtitle: 'Kualitas Grade A: Tahan 3-5 hari ke depan pada suhu etalase sejuk.',
       prep_time: '10 menit',
       difficulty: 'Mudah',
-      description: 'Potongan tomat segar dengan tekstur padat dan berair, disajikan dingin dengan dressing minyak zaitun dan madu.',
+      description: 'Stroberi padat berwarna merah menyala dengan kelopak hijau segar. Segera tata di rak etalase depan dengan ventilasi udara baik, atau kemas dalam mika berlubang untuk menjaga harga jual maksimal.',
       ingredients: [
-        '300g Tomat Segar',
-        '1 sdm Minyak Zaitun',
-        '1 sdt Madu Murni',
-        '1 sdm Air Lemon',
-        'Sejumput Garam dan Lada Hitam'
+        'Stroberi Segar Grade A',
+        'Wadah mika berlubang (ventilasi respirasi)',
+        'Bantalan busa / jaring buah pengaman memar'
       ],
       steps: [
-        'Iris tomat segar setebal 0.5 cm secara rapi.',
-        'Campurkan minyak zaitun, madu, air lemon, garam, dan lada dalam mangkuk kecil.',
-        'Siramkan dressing secara merata di atas irisan tomat sesaat sebelum disajikan.'
+        'Pilah stroberi dan pastikan tidak ada buah yang lembek berdempetan.',
+        'Keringkan dari embun berlebih sebelum masuk ke etalase.',
+        'Atur dengan tangkai menghadap ke bawah dalam satu lapis (hindari tumpukan lebih dari 2 lapis).',
+        'Pertahankan display pada suhu sejuk 15-20°C untuk memperpanjang daya pikat pelanggan.'
       ],
-      tips: 'Simpan tomat di suhu ruang terbuka agar aroma manis alaminya terjaga optimal.',
-      image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80'
+      tips: 'Jual dengan harga ritel penuh (Rp 70.000 - Rp 90.000/kg) untuk memaksimalkan margin keuntungan.',
+      image_url: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&w=600&q=80'
     },
     busuk: {
-      id: 'rec_tomato_compost',
+      id: 'rec_strawberry_compost',
       type: 'Kompos',
-      title: 'Kompos Organik Aerobik & Pupuk Cair',
-      subtitle: 'Konversi tomat busuk menjadi nutrisi tanah tinggi fosfor & kalium.',
+      title: 'Kompos Organik & Bio-Enzim Asam Buah',
+      subtitle: 'Konversi stroberi berjamur / busuk menjadi pupuk booster tanaman tinggi kalium.',
       prep_time: '15 menit',
       difficulty: 'Mudah',
-      description: 'Tomat yang telah terdegradasi dan mengeluarkan gas metana tinggi tidak boleh dikonsumsi. Alihkan langsung ke komposter aerobik untuk menyuburkan tanaman tanpa mencemari atmosfer.',
+      description: 'Stroberi yang telah terinfeksi kapang abu-abu (Botrytis / Gray Mold) dan mengeluarkan emisi gas metana tidak aman dijual. Segera pisahkan dan masukkan ke komposter aerobik atau botol eco-enzyme untuk mencegah kontaminasi silang ke stok lain.',
       ingredients: [
-        'Tomat busuk (sumber nitrogen & air)',
-        'Sampah cokelat (daun kering, serbuk gergaji, atau kardus sobek)',
-        'Aktivator EM4 atau air cucian beras'
+        'Stroberi busuk berjamur (sumber glukosa & nitrogen)',
+        'Materi cokelat kering (serbuk kayu / sekam / daun kering)',
+        'Molase / Gula merah dan bio-aktivator EM4'
       ],
       steps: [
-        'Cacah tomat busuk menjadi potongan lebih kecil untuk mempercepat dekomposisi mikroba.',
-        'Lapisi dasar wadah komposter dengan materi cokelat kering setebal 5 cm.',
-        'Masukkan cacahan tomat, lalu tutup kembali dengan lapisan materi cokelat untuk mencegah bau dan lalat.',
-        'Siram sedikit aktivator mikroba dan aduk seminggu sekali untuk sirkulasi oksigen.'
+        'Segera isolasi dari keranjang dagangan agar spora jamur tidak menulari buah segar lainnya.',
+        'Cacah stroberi dan masukkan ke wadah komposter bersama sekam/serbuk kayu.',
+        'Atau masukkan ke dalam galon dengan rasio 1 bagian gula merah : 3 bagian stroberi : 10 bagian air untuk eco enzyme pembersih organik.'
       ],
-      tips: 'Jangan masukkan tomat busuk yang terkena minyak goreng atau bahan kimia berbahaya.',
-      image_url: 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=600&q=80'
-    }
-  },
-  'Sawi Hijau': {
-    layu: {
-      id: 'rec_sawi_stirfry',
-      type: 'Resep Masakan',
-      title: 'Tumis Sawi Gurih Bawang Putih',
-      subtitle: 'Kembalikan kerenyahan sawi layu dengan tumisan api besar (wok hei).',
-      prep_time: '15 menit',
-      difficulty: 'Mudah',
-      description: 'Sawi yang mulai kehilangan kadar air tetap lezat dan kaya serat saat dimasak dengan teknik tumis cepat.',
-      ingredients: [
-        '1 ikat Sawi Hijau Layu',
-        '4 siung Bawang Putih, geprek',
-        '1 sdm Saus Tiram',
-        '1/2 sdt Minyak Wijen',
-        'Garam dan merica secukupnya'
-      ],
-      steps: [
-        'Rendam sawi layu di dalam air es dingin selama 5 menit untuk menyegarkan kembali batangnya.',
-        'Potong-potong sepanjang 3-4 cm.',
-        'Tumis bawang putih cincang hingga harum kekuningan.',
-        'Masukkan bagian batang sawi terlebih dahulu, masak 1 menit, lalu masukkan daunnya.',
-        'Beri saus tiram, garam, dan tetesan minyak wijen. Angkat saat masih hijau cerah.'
-      ],
-      tips: 'Perendaman air es bekerja secara osmosis mengembalikan turgor sel sayuran.',
-      image_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80'
-    },
-    segar: {
-      id: 'rec_sawi_fresh',
-      type: 'Resep Masakan',
-      title: 'Sup Bening Sawi Jamur Enoki',
-      subtitle: 'Kuah kaldu hangat gurih dengan sawi hijau segar.',
-      prep_time: '15 menit',
-      difficulty: 'Mudah',
-      description: 'Sawi segar dipadu dengan jamur dan kaldu gurih untuk makan siang menyehatkan.',
-      ingredients: ['Sawi Hijau segar', 'Jamur Enoki', 'Bawang Putih', 'Kaldu Ayam/Jamur', 'Merica'],
-      steps: [
-        'Didihkan air kaldu dengan tumisan bawang putih.',
-        'Masukkan jamur dan sawi segar.',
-        'Masak selama 2-3 menit agar sawi tetap renyah.'
-      ],
-      image_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80'
-    },
-    busuk: {
-      id: 'rec_sawi_eco_enzyme',
-      type: 'Eco Enzyme',
-      title: 'Eco Enzyme & Kompos Nitrogen Tinggi',
-      subtitle: 'Fermentasi sayuran busuk menjadi cairan pembersih serbaguna.',
-      prep_time: '20 menit',
-      difficulty: 'Mudah',
-      description: 'Sawi yang berlendir dan mengeluarkan bau amonia difermentasi dengan molase gula merah.',
-      ingredients: ['100g Gula Merah / Molase', '300g Sisa Sawi Busuk', '1000ml Air Bersih'],
-      steps: [
-        'Larutkan gula merah ke dalam wadah berisi air.',
-        'Masukkan potongan sayur sawi busuk.',
-        'Tutup rapat dan simpan di tempat teduh selama 3 bulan untuk menghasilkan enzim pembersih alami.'
-      ],
-      image_url: 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=600&q=80'
-    }
-  },
-  Pisang: {
-    layu: {
-      id: 'rec_banana_bread',
-      type: 'Resep Masakan',
-      title: 'Bolu Pisang Kukus Karamel (Banana Bread)',
-      subtitle: 'Pisang berbintik hitam (overripe) menghasilkan bolu paling wangi dan manis.',
-      prep_time: '35 menit',
-      difficulty: 'Mudah',
-      description: 'Bintik hitam pada kulit pisang menandakan pemecahan pati menjadi fruktosa alami yang melimpah, bahan terbaik untuk cake dan pancake tanpa perlu banyak gula tambahan.',
-      ingredients: [
-        '3 buah Pisang Kulit Hitam/Layu',
-        '1 butir Telur Ayam',
-        '4 sdm Minyak Kelapa / Margarin cair',
-        '6 sdm Tepung Terigu',
-        '1/2 sdt Baking Soda & Sejumput Garam'
-      ],
-      steps: [
-        'Haluskan pisang matang menggunakan garpu.',
-        'Kocok telur bersama pisang dan margarin cair hingga tercampur rata.',
-        'Ayak tepung terigu dan baking soda ke dalam adonan pisang, aduk perlahan.',
-        'Tuang adonan ke loyang dan kukus selama 25-30 menit dengan api sedang.',
-        'Tusuk dengan lidi untuk mengecek kematangan, sajikan hangat.'
-      ],
-      tips: 'Semakin hitam bintik kulit pisang, semakin kuat aroma pisang pada kue yang dihasilkan!',
-      image_url: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80'
-    },
-    segar: {
-      id: 'rec_banana_smoothie',
-      type: 'Resep Masakan',
-      title: 'Smoothie Pisang Madu & Susu Gandum',
-      subtitle: 'Minuman energi tinggi potasium penambah stamina.',
-      prep_time: '5 menit',
-      difficulty: 'Mudah',
-      description: 'Pisang segar kuning mulus di-blend bersama susu dan madu alami.',
-      ingredients: ['2 buah Pisang Segar', '200ml Susu Segar', '1 sdm Madu', 'Es Batu'],
-      steps: ['Kupas dan potong pisang.', 'Masukkan semua bahan ke dalam blender dan haluskan selama 30 detik.'],
-      image_url: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80'
-    },
-    busuk: {
-      id: 'rec_banana_liquid_fert',
-      type: 'Kompos',
-      title: 'Pupuk Organik Cair Kalium Tinggi',
-      subtitle: 'Nutrisi organik booster pembungaan dan pembuahan tanaman.',
-      prep_time: '10 menit',
-      difficulty: 'Mudah',
-      description: 'Pisang yang berlendir dan hancur difermentasi dengan air untuk diekstrak kandungan kalium dan fosfor alaminya.',
-      ingredients: ['Pisang busuk beserta kulitnya', 'Air kelapa atau air biasa', '1 sdt gula pasir'],
-      steps: [
-        'Potong pisang busuk dan masukkan ke dalam botol bekas.',
-        'Tambahkan air dan sedikit gula, kocok lalu tutup longgar.',
-        'Biarkan terfermentasi 7 hari, lalu saring cairannya untuk disiram ke tanaman hias atau buah.'
-      ],
-      image_url: 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=600&q=80'
-    }
-  },
-  Selada: {
-    layu: {
-      id: 'rec_selada_soup',
-      type: 'Resep Masakan',
-      title: 'Sup Selada Telur Puyuh Gurih',
-      subtitle: 'Selada layu yang lembut dijadikan hidangan sup ala oriental.',
-      prep_time: '15 menit',
-      difficulty: 'Mudah',
-      description: 'Selada yang tidak lagi garing untuk salad sangat cocok diseduh dalam kuah kaldu panas.',
-      ingredients: ['1 bonggol Selada Layu', '6 butir Telur Puyuh matang', '2 siung Bawang Putih', 'Kaldu ayam'],
-      steps: [
-        'Rebus kaldu ayam dengan irisan bawang putih.',
-        'Masukkan telur puyuh dan selada layu yang sudah dicuci bersih.',
-        'Matikan api setelah 1 menit agar nutrisi daun tetap optimal.'
-      ],
-      image_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80'
-    },
-    segar: {
-      id: 'rec_selada_crispy',
-      type: 'Resep Masakan',
-      title: 'Garden Fresh Salad Bowl',
-      subtitle: 'Salad selada renyah dengan saus wijen sangrai.',
-      prep_time: '10 menit',
-      difficulty: 'Mudah',
-      description: 'Selada segar renyah berpadu dengan irisan mentimun dan dressing wijen.',
-      ingredients: ['Selada segar', 'Mentimun', 'Tomat ceri', 'Dressing wijen sangrai'],
-      steps: ['Potong kasar selada segar.', 'Campurkan dengan bahan sayur lainnya dan tuang dressing.'],
-      image_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80'
-    },
-    busuk: {
-      id: 'rec_selada_compost',
-      type: 'Kompos',
-      title: 'Kompos Penggembur Tanah Cepat Urai',
-      subtitle: 'Dekomposisi cepat untuk memperbaiki porositas tanah kebun.',
-      prep_time: '10 menit',
-      difficulty: 'Mudah',
-      description: 'Selada yang membusuk memiliki serat lunak yang cepat diurai oleh cacing tanah dan mikroba.',
-      ingredients: ['Selada busuk', 'Tanah kebun', 'Sekam bakar'],
-      steps: ['Campurkan selada busuk dengan sekam dan tanah.', 'Diamkan 10 hari dalam pot kompos.'],
+      tips: 'Tindakan cepat ini memutus sumber emisi gas metana di pasar dan mensterilkan kios dari spora jamur.',
       image_url: 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=600&q=80'
     }
   }
 };
 
 /**
- * Sensor Fusion Calculation Engine:
- * Fuses visual image feature confidence with gas sensor telemetry (MQ-4 & MQ-135)
+ * Validasi Kroma Sensor Spektral TCS34725 terhadap Deteksi Kamera
+ * Tanpa data dummy: Jika sensor belum terhubung / bernilai 0, laporkan status tanpa data.
+ */
+export function validateColorSensor(gas: GasData, visualScore: number): ColorValidationDetail {
+  const r = gas.color_r ?? 0;
+  const g = gas.color_g ?? 0;
+  const b = gas.color_b ?? 0;
+  const lux = gas.color_lux ?? 0;
+  const colorTemp = gas.color_temp ?? 0;
+  const hex = gas.color_hex || '#000000';
+  const colorName = gas.color_name || 'Belum Ada Data Sensor';
+
+  // Jika data sensor fisik belum ada (bernilai 0)
+  if (r === 0 && g === 0 && b === 0) {
+    return {
+      sensor_hex: hex,
+      sensor_name: colorName,
+      red_ratio: 0,
+      lux: 0,
+      color_temp_kelvin: 0,
+      consistency_status: 'Belum Ada Data Sensor',
+      message: 'Sensor warna fisik TCS34725 belum mengirimkan data (nilai 0). Sistem mengandalkan deteksi visual kamera.'
+    };
+  }
+
+  const totalRgb = r + g + b + 0.001;
+  const redRatio = Number((r / totalRgb).toFixed(3));
+
+  let consistencyStatus: 'Sangat Konsisten' | 'Tervalidasi (Pencahayaan Redup Terkoreksi)' | 'Peringatan Anomali Warna' | 'Belum Ada Data Sensor' = 'Sangat Konsisten';
+  let message = 'Spektrum warna sensor fisik mengonfirmasi hasil visual kamera secara presisi.';
+
+  if (redRatio >= 0.52 && visualScore <= 2 && lux < 250 && lux > 0) {
+    consistencyStatus = 'Tervalidasi (Pencahayaan Redup Terkoreksi)';
+    message = `Sensor TCS34725 membaca pigmen merah pekat (${(redRatio * 100).toFixed(0)}%), mengoreksi kamera yang meredup akibat bayangan di kios.`;
+  } else if (redRatio < 0.40 && visualScore >= 4) {
+    consistencyStatus = 'Peringatan Anomali Warna';
+    message = 'Kamera mendeteksi warna cerah akibat silau lampu, namun TCS34725 mendeteksi dominasi kehijauan/pucat (buah masih muda).';
+  } else if (redRatio >= 0.48) {
+    consistencyStatus = 'Sangat Konsisten';
+    message = `Kanal kroma merah spektral (${(redRatio * 100).toFixed(0)}%) valid dan konsisten dengan tingkat kematangan visual kamera.`;
+  }
+
+  return {
+    sensor_hex: hex,
+    sensor_name: colorName,
+    red_ratio: redRatio,
+    lux,
+    color_temp_kelvin: colorTemp,
+    consistency_status: consistencyStatus,
+    message
+  };
+}
+
+/**
+ * Sensor Fusion Engine:
+ * Menghitung Prediksi Sisa Umur Simpan (Shelf-Life), Indikator Kematangan, Deteksi Penyakit,
+ * dan Rekomendasi Manajemen Stok Cerdas Pedagang untuk Buah Stroberi.
+ * Menggunakan nilai 0 jika data IoT belum tersedia (tidak menggunakan data dummy).
  */
 export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult {
+  const foodName = 'Stroberi';
+
+  // Pembacaan sensor fisik murni tanpa data dummy (nilai 0 jika belum ada data)
   const ch4 = gas.ch4_ppm ?? 0;
   const aqi = gas.aqi_ppm ?? 0;
+  const temp = gas.temperature ?? 0; // °C
+  const rh = gas.humidity ?? 0;     // %
 
-  // 1. Normalize Visual Score [0, 1]
-  const vScoreNorm = Math.min(Math.max((visual.visual_score - 1) / 4, 0), 1);
+  // 1. Validasi Kroma Warna Sensor Fisik TCS34725
+  const colorVal = validateColorSensor(gas, visual.visual_score);
 
-  // 2. Normalize MQ-4 Methane Gas Score [0, 1] (Lower ppm is better)
-  // < 1.0 ppm -> 1.0 (Fresh)
-  // 1.0 - 2.5 ppm -> 0.6 (Warning / Overripe)
-  // > 2.5 ppm -> 0.1 (Rotten / Decomposition)
-  let mq4ScoreNorm = 1.0;
-  if (ch4 > 2.5) {
-    mq4ScoreNorm = Math.max(0, 1 - (ch4 / 5));
-  } else if (ch4 > 1.0) {
-    mq4ScoreNorm = 0.5 + (0.4 * ((2.5 - ch4) / 1.5));
+  // 2. Koreksi Skor Visual Berdasarkan Validasi Sensor Warna (Hanya jika ada data fisik)
+  let adjustedVisualScore = visual.visual_score;
+  if (colorVal.consistency_status === 'Tervalidasi (Pencahayaan Redup Terkoreksi)' && adjustedVisualScore < 3) {
+    adjustedVisualScore = 3;
+  } else if (colorVal.consistency_status === 'Peringatan Anomali Warna' && adjustedVisualScore > 3) {
+    adjustedVisualScore = 2;
   }
 
-  // 3. Normalize MQ-135 Air Quality / NH3 Score [0, 1]
-  // < 50 ppm -> 1.0 (Fresh)
-  // 50 - 120 ppm -> 0.55 (Moderate VOCs)
-  // > 120 ppm -> 0.1 (High Ammonia / Spoilage)
-  let mq135ScoreNorm = 1.0;
-  if (aqi > 120) {
-    mq135ScoreNorm = Math.max(0, 1 - (aqi / 250));
-  } else if (aqi > 50) {
-    mq135ScoreNorm = 0.5 + (0.4 * ((120 - aqi) / 70));
+  // 3. Stres Mikroklimat DHT22 (Hanya aktif jika sensor terhubung / suhu > 0)
+  let tempStressFactor = 1.0;
+  let rhStressFactor = 1.0;
+  if (temp > 0) {
+    tempStressFactor = 1.0 + Math.max(0, (temp - 22.0) * 0.09);
+  }
+  if (rh > 0) {
+    rhStressFactor = 1.0 + Math.max(0, (rh - 70.0) * 0.02);
+  }
+  const environmentalStressFactor = Number((tempStressFactor * rhStressFactor).toFixed(2));
+
+  // 4. Deteksi Peringatan Dini Gas Biokimia (MQ-4 & MQ-135)
+  const hasGasSpike = (ch4 >= 1.8 && ch4 > 0) || (aqi >= 90 && aqi > 0);
+  const isSeverelySpoiled = (ch4 >= 2.8 && ch4 > 0) || (aqi >= 140 && aqi > 0);
+
+  // 5. Penentuan Fase Kematangan (Ripeness Stage) & Deteksi Penyakit
+  let ripenessStage: RipenessStage = 'Fullripe (Matang Optimal)';
+  let diseaseDetected: DiseaseStatus = 'Normal (Bebas Jamur)';
+
+  if (adjustedVisualScore >= 4 && !hasGasSpike) {
+    if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.42) {
+      ripenessStage = 'Unripe (Mentah)';
+    } else if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.50) {
+      ripenessStage = 'Semiripe (Setengah Matang)';
+    } else {
+      ripenessStage = 'Fullripe (Matang Optimal)';
+    }
+  } else if (adjustedVisualScore === 3) {
+    ripenessStage = 'Fullripe (Matang Optimal)';
+  } else if (adjustedVisualScore === 2 || hasGasSpike) {
+    ripenessStage = 'Overripe (Lewat Matang)';
+    if (rh > 78 || aqi > 80 || visual.defects.some(d => d.toLowerCase().includes('jamur') || d.toLowerCase().includes('bintik'))) {
+      diseaseDetected = 'Risiko Gray Mold (Botrytis)';
+    }
+  } else {
+    ripenessStage = 'Overripe (Lewat Matang)';
+    diseaseDetected = 'Risiko Gray Mold (Botrytis)';
   }
 
-  // 4. Weighted Multimodal Fusion (0.4 Visual + 0.3 MQ-4 + 0.3 MQ-135)
-  const weightedScore = (0.4 * vScoreNorm) + (0.3 * mq4ScoreNorm) + (0.3 * mq135ScoreNorm);
+  // 6. Komputasi Prediksi Sisa Umur Simpan (Shelf-Life in Hours & Days)
+  let baselineHours = 48; // default Fullripe
+  let timeToMatureHours = 0;
 
-  // Map to 1-5 scale
-  let calculatedScore = Math.round(1 + (weightedScore * 4));
-  calculatedScore = Math.min(Math.max(calculatedScore, 1), 5);
+  if (ripenessStage === 'Unripe (Mentah)') {
+    baselineHours = 144; // 6 hari
+    timeToMatureHours = 48;
+  } else if (ripenessStage === 'Semiripe (Setengah Matang)') {
+    baselineHours = 96;  // 4 hari
+    timeToMatureHours = 24;
+  } else if (ripenessStage === 'Fullripe (Matang Optimal)') {
+    baselineHours = 48;  // 2 hari
+    timeToMatureHours = 0;
+  } else {
+    baselineHours = 18;  // < 1 hari
+    timeToMatureHours = 0;
+  }
 
-  // Decision Thresholds
+  if (isSeverelySpoiled) {
+    baselineHours = 0;
+  } else if (hasGasSpike) {
+    baselineHours = Math.min(baselineHours, 12);
+  }
+
+  const effectiveHours = baselineHours > 0 
+    ? Math.max(4, Math.round(baselineHours / environmentalStressFactor))
+    : 0;
+  const daysRemaining = Number((effectiveHours / 24).toFixed(1));
+
+  // 7. Keputusan Status & Badge Kesegaran
   let status: FreshnessStatus = 'Layu';
   let badgeColor: 'green' | 'yellow' | 'red' = 'yellow';
-  let statusSummary = 'Masih layak diolah sebelum terbuang';
+  let calculatedScore = 3;
+  let statusSummary = '';
 
-  if (calculatedScore >= 4) {
+  if (effectiveHours >= 48 && !hasGasSpike) {
     status = 'Segar';
     badgeColor = 'green';
-    statusSummary = 'Kualitas prima, aman untuk konsumsi langsung atau olahan segar';
-  } else if (calculatedScore <= 1 || ch4 >= 2.8 || aqi >= 140) {
-    status = 'Busuk';
-    calculatedScore = 1;
-    badgeColor = 'red';
-    statusSummary = 'Tidak aman dikonsumsi (Emisi gas tinggi), alihkan ke komposter organik';
-  } else {
-    // Score 2-3
-    if (calculatedScore === 2) {
-      status = 'Terlalu Matang';
-    } else {
-      status = 'Layu';
-    }
+    calculatedScore = 5;
+    statusSummary = `Kondisi prima (Sisa umur simpan ~${daysRemaining} hari). Stok aman untuk pajangan utama harga penuh.`;
+  } else if (effectiveHours >= 24) {
+    status = 'Segar';
+    badgeColor = 'green';
+    calculatedScore = 4;
+    statusSummary = `Matang optimal (Sisa umur simpan ~${effectiveHours} jam). Prioritaskan pajang di rak depan hari ini.`;
+  } else if (effectiveHours >= 10 && !isSeverelySpoiled) {
+    status = 'Layu';
     badgeColor = 'yellow';
-    statusSummary = 'Masih layak diolah sebelum terbuang';
+    calculatedScore = 2;
+    statusSummary = `Mendekati batas simpan (Sisa ~${effectiveHours} jam). Ambil aksi jual cepat atau olah sebelum busuk.`;
+  } else {
+    status = 'Busuk';
+    badgeColor = 'red';
+    calculatedScore = 1;
+    statusSummary = `Tidak layak konsumsi. Segera pisahkan ke komposter organik agar tidak menulari stok lain.`;
   }
 
-  // Gas summary categorizations
-  const ch4_status: 'Rendah' | 'Sedang' | 'Tinggi' = ch4 < 1.0 ? 'Rendah' : ch4 < 2.5 ? 'Sedang' : 'Tinggi';
-  const aqi_status: 'Baik' | 'Sedang' | 'Tinggi' = aqi < 50 ? 'Baik' : aqi < 120 ? 'Sedang' : 'Tinggi';
-  const visual_status: 'Segar' | 'Layu' | 'Berkerut' | 'Busuk' = 
-    status === 'Segar' ? 'Segar' : status === 'Busuk' ? 'Busuk' : (visual.defects.includes('Kulit Berkerut') ? 'Berkerut' : 'Layu');
+  // 8. Rekomendasi Aksi Inventaris & Strategi Penjualan Cepat (Merchant Action)
+  let inventoryAction: InventoryAction = 'Pajang di Etalase Depan Segera';
+  let pricingStrategy: PricingAction = 'Harga Normal';
+  let urgencyLevel: 'Aman' | 'Perhatian' | 'Kritis' | 'Kedaluwarsa' = 'Aman';
 
-  // Select Recommendation
-  const itemCatalog = RECIPE_CATALOG[visual.item_name] || RECIPE_CATALOG['Tomat'];
+  if (effectiveHours > 72 && !hasGasSpike) {
+    inventoryAction = 'Simpan di Gudang / Stok Cadangan';
+    pricingStrategy = 'Harga Normal';
+    urgencyLevel = 'Aman';
+  } else if (effectiveHours >= 36 && !hasGasSpike) {
+    inventoryAction = 'Pajang di Etalase Depan Segera';
+    pricingStrategy = 'Harga Normal';
+    urgencyLevel = 'Perhatian';
+  } else if (effectiveHours >= 14 && !isSeverelySpoiled) {
+    inventoryAction = 'Diskon / Jual Cepat Hari Ini';
+    pricingStrategy = 'Diskon 30-50%';
+    urgencyLevel = 'Kritis';
+  } else if (effectiveHours > 0 && !isSeverelySpoiled) {
+    inventoryAction = 'Alihkan ke Pengolah Selai / Jus';
+    pricingStrategy = 'Jual Murah Borongan';
+    urgencyLevel = 'Kritis';
+  } else {
+    inventoryAction = 'Pilah ke Komposter Organik / Bio-fermentasi';
+    pricingStrategy = 'Bahan Baku Olahan';
+    urgencyLevel = 'Kedaluwarsa';
+  }
+
+  const shelfLifeDetail: ShelfLifeDetail = {
+    hours_remaining: effectiveHours,
+    days_remaining: daysRemaining,
+    time_to_mature_hours: timeToMatureHours,
+    ripeness_stage: ripenessStage,
+    disease_detected: diseaseDetected,
+    inventory_action: inventoryAction,
+    pricing_strategy: pricingStrategy,
+    urgency_level: urgencyLevel,
+    environmental_stress_factor: environmentalStressFactor,
+    color_validation: colorVal
+  };
+
+  const itemCatalog = RECIPE_CATALOG['Stroberi'];
   let recommendation = itemCatalog.layu;
   if (status === 'Segar') {
     recommendation = itemCatalog.segar;
@@ -314,40 +310,59 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     recommendation = itemCatalog.busuk;
   }
 
-  // Quantify Environmental & Financial Impact
-  const saved_weight_kg = status === 'Busuk' ? 0.35 : 0.5; // Average sample portion
-  const prevented_ch4_g = Number((saved_weight_kg * (status === 'Busuk' ? 4.2 : 13.6)).toFixed(1));
-  const prevented_co2e_g = Number((saved_weight_kg * (status === 'Busuk' ? 10.5 : 34.0)).toFixed(1));
-  const financial_savings_idr = status === 'Busuk' ? 5000 : 15000;
+  // Bobot default standar sampel (1.0 kg)
+  const batchWeightKg = Number(visual.batch_weight_kg ?? 1.0);
+  const basePricePerKg = 65000;
+  let financialSavings = 0;
+
+  if (status === 'Segar') {
+    financialSavings = Math.round(batchWeightKg * basePricePerKg);
+  } else if (status === 'Layu') {
+    financialSavings = Math.round(batchWeightKg * basePricePerKg * 0.70);
+  } else {
+    financialSavings = Math.round(batchWeightKg * 6000);
+  }
+
+  const isComposted = status === 'Busuk';
+  const divertedKg = batchWeightKg;
+  const preventedCh4 = Number((divertedKg * (isComposted ? 6.5 : 13.6)).toFixed(1));
+  const preventedCo2e = Number((preventedCh4 * 28.0).toFixed(1));
+
+  // Kategori gas murni tanpa dummy
+  const ch4Status: 'Rendah' | 'Sedang' | 'Tinggi' = ch4 === 0 ? 'Rendah' : ch4 < 1.0 ? 'Rendah' : ch4 < 2.2 ? 'Sedang' : 'Tinggi';
+  const aqiStatus: 'Baik' | 'Sedang' | 'Tinggi' = aqi === 0 ? 'Baik' : aqi < 50 ? 'Baik' : aqi < 110 ? 'Sedang' : 'Tinggi';
+  const visualStatus: 'Segar' | 'Layu' | 'Berkerut' | 'Busuk' = 
+    status === 'Segar' ? 'Segar' : status === 'Busuk' ? 'Busuk' : (visual.defects.some(d => d.toLowerCase().includes('kerut')) ? 'Berkerut' : 'Layu');
 
   return {
-    item_name: visual.item_name,
-    category: visual.category,
+    item_name: foodName,
+    category: 'Buah',
     freshness_score: calculatedScore,
     status,
     status_badge_color: badgeColor,
     status_summary: statusSummary,
+    shelf_life: shelfLifeDetail,
     gas_summary: {
       ch4_ppm: ch4,
-      ch4_status,
+      ch4_status: ch4Status,
       aqi_ppm: aqi,
-      aqi_status,
-      visual_status,
-      temperature: gas.temperature,
-      humidity: gas.humidity,
-      color_hex: gas.color_hex,
-      color_name: gas.color_name,
-      color_r: gas.color_r,
-      color_g: gas.color_g,
-      color_b: gas.color_b,
-      color_lux: gas.color_lux,
-      color_temp: gas.color_temp
+      aqi_status: aqiStatus,
+      visual_status: visualStatus,
+      temperature: temp,
+      humidity: rh,
+      color_hex: colorVal.sensor_hex,
+      color_name: colorVal.sensor_name,
+      color_r: gas.color_r ?? 0,
+      color_g: gas.color_g ?? 0,
+      color_b: gas.color_b ?? 0,
+      color_lux: colorVal.lux,
+      color_temp: colorVal.color_temp_kelvin
     },
     recommendation,
-    saved_weight_kg,
-    prevented_ch4_g,
-    prevented_co2e_g,
-    financial_savings_idr,
+    saved_weight_kg: divertedKg,
+    prevented_ch4_g: preventedCh4,
+    prevented_co2e_g: preventedCo2e,
+    financial_savings_idr: financialSavings,
     scan_time: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ' • ' + 
                new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     image_url: visual.image_url

@@ -8,16 +8,13 @@ const PROTECTED_ROUTES = [
   '/beranda',
   '/riwayat',
   '/laporan',
-  '/report',
   '/profil'
 ];
 
 // Auth routes for unauthenticated users
 const AUTH_ROUTES = [
   '/masuk',
-  '/daftar',
-  '/signin',
-  '/signup'
+  '/daftar'
 ];
 
 export function middleware(request: NextRequest) {

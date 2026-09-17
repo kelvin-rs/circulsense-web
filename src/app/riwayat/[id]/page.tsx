@@ -204,6 +204,33 @@ export default function RiwayatDetailPage() {
               </strong>
             </div>
           </div>
+
+          {/* Prediksi Umur Simpan & Keputusan Inventaris Pedagang */}
+          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                Prediksi Umur Simpan & Aksi Stok Pedagang
+              </span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                Sisa ~{record.shelf_life_hours ?? 48} Jam ({record.shelf_life_days ?? 2.0} Hari)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                <span className="text-[10px] text-slate-500 font-medium block">Tindakan Inventaris Disarankan:</span>
+                <strong className="text-slate-900 font-bold text-xs mt-0.5 block">
+                  {record.inventory_action || 'Pajang di Etalase Depan Segera'}
+                </strong>
+              </div>
+              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                <span className="text-[10px] text-slate-500 font-medium block">Strategi Harga & Kematangan:</span>
+                <strong className="text-emerald-700 font-bold text-xs mt-0.5 block">
+                  {record.pricing_strategy || 'Harga Normal'} • {record.ripeness_stage || 'Fullripe'}
+                </strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 3. MULTIMODAL SENSOR TELEMETRY */}

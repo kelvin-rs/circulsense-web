@@ -9,7 +9,7 @@ import { HasilAnalisis } from '@/components/beranda/HasilAnalisis';
 import { RecipeDetailModal } from '@/components/RecipeDetailModal';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import { runSensorFusion } from '@/lib/sensor-fusion';
-import { saveScanRecord, supabase } from '@/lib/supabase';
+import { saveScanRecord, submitScanTask, pollScanResult, supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { GasData, VisualData, FusionResult, UpcyclingRecommendation } from '@/types/circulsense';
 
@@ -24,6 +24,8 @@ export default function BerandaPage() {
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
   const [activeRecipeModal, setActiveRecipeModal] = useState<UpcyclingRecommendation | null>(null);
+
+  const pendingScanIdRef = React.useRef<string | null>(null);
 
   const handleTriggerCamera = () => {
     setSubView('pindai');
@@ -95,15 +97,54 @@ export default function BerandaPage() {
   const handleStartAnalysis = (visualData: VisualData) => {
     setActiveVisualData(visualData);
     setSubView('proses');
+
+    // Buat antrean ke Supabase agar ditangkap otomatis oleh run_demo.bat di laptop
+    submitScanTask(visualData, gasData).then((id) => {
+      pendingScanIdRef.current = id;
+    });
   };
 
   const handleAnalysisCompleted = async () => {
     if (!activeVisualData) return;
 
-    const result = runSensorFusion(activeVisualData, gasData);
-    setCurrentFusionResult(result);
+    let mlResultFromSupabase: any = null;
+    if (pendingScanIdRef.current) {
+      // Tunggu hingga Worker Python selesai mengupdate baris ini di Supabase (maks 4 detik)
+      mlResultFromSupabase = await pollScanResult(pendingScanIdRef.current, 4000);
+    }
 
-    await saveScanRecord(result);
+    // Jalankan fusi sensor lokal sebagai basis
+    const result = runSensorFusion(activeVisualData, gasData);
+
+    // Jika Worker Python di laptop berhasil mengeksekusi YOLO & Multimodal, terapkan hasil nyata AI!
+    if (mlResultFromSupabase) {
+      result.is_live_ml = true;
+      result.freshness_score = mlResultFromSupabase.skor_kesegaran ?? result.freshness_score;
+      result.status = mlResultFromSupabase.status_kesegaran ?? result.status;
+      result.status_badge_color = mlResultFromSupabase.warna_badge_status ?? result.status_badge_color;
+      result.status_summary = mlResultFromSupabase.ringkasan_analisis ?? result.status_summary;
+      if (mlResultFromSupabase.sisa_umur_simpan_jam != null) {
+        result.shelf_life.hours_remaining = Number(mlResultFromSupabase.sisa_umur_simpan_jam);
+        result.shelf_life.days_remaining = Number(mlResultFromSupabase.sisa_hari_simpan);
+      }
+      if (mlResultFromSupabase.fase_kematangan) {
+        result.shelf_life.ripeness_stage = mlResultFromSupabase.fase_kematangan;
+      }
+      if (mlResultFromSupabase.deteksi_penyakit) {
+        result.shelf_life.disease_detected = mlResultFromSupabase.deteksi_penyakit;
+      }
+      if (mlResultFromSupabase.tindakan_stok_pedagang) {
+        result.shelf_life.inventory_action = mlResultFromSupabase.tindakan_stok_pedagang;
+      }
+      if (mlResultFromSupabase.rekomendasi_harga) {
+        result.shelf_life.pricing_strategy = mlResultFromSupabase.rekomendasi_harga;
+      }
+    } else {
+      // Fallback jika laptop sedang offline/tidak menjalankan run_demo.bat
+      await saveScanRecord(result);
+    }
+
+    setCurrentFusionResult(result);
     setSubView('hasil');
   };
 

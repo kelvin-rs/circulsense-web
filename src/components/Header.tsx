@@ -51,8 +51,7 @@ export const Header: React.FC<HeaderProps> = () => {
             {navLinks.map((item) => {
               const isActive =
                 pathname === item.href ||
-                (item.href === '/beranda' && (pathname === '/' || pathname === '/beranda')) ||
-                (item.href === '/laporan' && pathname === '/report');
+                (item.href === '/beranda' && (pathname === '/' || pathname === '/beranda'));
               return (
                 <Link
                   key={item.href}

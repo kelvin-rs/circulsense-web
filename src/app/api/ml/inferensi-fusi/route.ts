@@ -45,12 +45,12 @@ export async function POST(request: NextRequest) {
     let targetUserId = id_pengguna;
     if (!targetUserId) {
       const { data: defaultUser } = await supabase.from('pengguna').select('id').limit(1).maybeSingle();
-      if (defaultUser) targetUserId = defaultUser.id;
+      targetUserId = defaultUser?.id || 'cf9ef20e-2c03-4f8e-aa4b-636913f0f627';
     }
 
-    if (!targetUserId || !item_name) {
+    if (!item_name) {
       return NextResponse.json(
-        { error: 'id_pengguna dan item_name wajib disertakan' },
+        { error: 'item_name wajib disertakan' },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -66,15 +66,15 @@ export async function POST(request: NextRequest) {
     };
 
     const gasInput = {
-      ch4_ppm: Number(ch4_ppm ?? 0.5),
-      aqi_ppm: Number(aqi_ppm ?? 30.0),
-      temperature: Number(temperature ?? 26.5),
+      ch4_ppm: Number(ch4_ppm ?? 0.0),
+      aqi_ppm: Number(aqi_ppm ?? 0.0),
+      temperature: Number(temperature ?? 27.0),
       humidity: Number(humidity ?? 65.0),
       color_r: 0,
       color_g: 0,
       color_b: 0,
-      color_hex: color_hex || '#2D7A38',
-      color_name: color_name || 'Alami',
+      color_hex: color_hex || '#DC2626',
+      color_name: color_name || 'Merah Stroberi',
       battery: 100,
       is_connected: true,
       timestamp: new Date().toISOString()
@@ -94,23 +94,33 @@ export async function POST(request: NextRequest) {
       kategori_bahan: category || 'Buah',
       skor_kesegaran: fusionResult.freshness_score,
       status_kesegaran: fusionResult.status,
+      warna_badge_status: fusionResult.status_badge_color,
+      ringkasan_analisis: fusionResult.status_summary,
       
-      kadar_metana_ppm: Number(ch4_ppm ?? 0.5),
-      kadar_gas_organik_ppm: Number(aqi_ppm ?? 30.0),
-      suhu_celsius: Number(temperature ?? 26.5),
-      kelembapan_persen: Number(humidity ?? 65.0),
-      kode_warna_hex: color_hex || '#2D7A38',
-      nama_warna: color_name || 'Alami',
+      gas_ch4_ppm: Number(ch4_ppm ?? 0.0),
+      gas_aqi_ppm: Number(aqi_ppm ?? 0.0),
+      suhu_lingkungan_c: Number(temperature ?? 27.0),
+      kelembapan_relatif_rh: Number(humidity ?? 65.0),
+      spektrum_warna_hex: color_hex || '#DC2626',
+      spektrum_nama_warna: color_name || 'Merah Stroberi',
       
+      sisa_umur_simpan_jam: fusionResult.shelf_life.hours_remaining,
+      sisa_hari_simpan: fusionResult.shelf_life.days_remaining,
+      fase_kematangan: fusionResult.shelf_life.ripeness_stage,
+      deteksi_penyakit: fusionResult.shelf_life.disease_detected,
+      tindakan_stok_pedagang: fusionResult.shelf_life.inventory_action,
+      rekomendasi_harga: fusionResult.shelf_life.pricing_strategy,
+      status_validasi_kroma: fusionResult.shelf_life.color_validation.consistency_status,
+
       kondisi_visual: (defects && defects.length > 0) ? defects.join(', ') : 'Permukaan Normal',
-      tindakan_diambil: fusionResult.status === 'Segar' ? 'Konsumsi Langsung' : fusionResult.status === 'Layu' ? 'Olah Masakan' : 'Kompos / POC',
+      tindakan_diambil: fusionResult.shelf_life.inventory_action,
       judul_rekomendasi: fusionResult.recommendation.title,
       
-      bobot_terselamatkan_kg: weightKg,
-      ch4_dicegah_gram: preventedCH4,
-      co2e_dicegah_gram: preventedCO2e,
-      penghematan_finansial_idr: financialSavings,
-      gambar_pemindaian_url: image_url || '',
+      estimasi_berat_kg: weightKg,
+      emisi_ch4_tercegah_g: preventedCH4,
+      emisi_co2e_tercegah_g: preventedCO2e,
+      penghematan_rupiah: financialSavings,
+      foto_sampel_url: image_url || '',
       dibuat_pada: new Date().toISOString()
     };
 
@@ -124,28 +134,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal menyimpan riwayat pemindaian', detail: scanErr.message }, { status: 500, headers: corsHeaders });
     }
 
-    // 2. Simpan ke log_dampak_lingkungan
-    const currentMonth = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-    const isCompost = fusionResult.status === 'Busuk';
+    // 2. Simpan atau perbarui log_dampak_lingkungan (non-blocking)
+    try {
+      const now = new Date();
+      const tahun = now.getFullYear();
+      const bulan = now.getMonth() + 1;
+      const periodeBulan = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+      const isCompost = fusionResult.status === 'Busuk';
 
-    await supabase.from('log_dampak_lingkungan').insert({
-      id_pengguna: targetUserId,
-      id_pemindaian: savedScan.id,
-      nama_bulan: currentMonth,
-      pangan_terselamatkan_kg: isCompost ? 0 : weightKg,
-      pangan_dikompos_kg: isCompost ? weightKg : 0,
-      metana_dicegah_gram: preventedCH4,
-      co2e_dicegah_gram: preventedCO2e,
-      penghematan_finansial_idr: financialSavings,
-      ekivalen_hutan_m2: Number((preventedCO2e / 1000 * 0.15).toFixed(2)),
-      ekivalen_pohon: Number((preventedCO2e / 1000 * 0.045).toFixed(2)),
-      dibuat_pada: new Date().toISOString()
-    });
+      await supabase.from('log_dampak_lingkungan').upsert({
+        id_pengguna: targetUserId,
+        periode_bulan: periodeBulan,
+        tahun,
+        bulan,
+        total_pemindaian: 1,
+        total_pangan_diselamatkan_kg: isCompost ? 0 : weightKg,
+        total_pangan_dikomposkan_kg: isCompost ? weightKg : 0,
+        total_ch4_tercegah_g: preventedCH4,
+        total_co2e_tercegah_g: preventedCO2e,
+        total_penghematan_rupiah: financialSavings,
+        diperbarui_pada: now.toISOString()
+      }, { onConflict: 'id_pengguna,tahun,bulan' });
+    } catch (logErr) {
+      console.warn('Non-critical log_dampak_lingkungan upsert error:', logErr);
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Fusi sensor dan inferensi ML berhasil diproses dan dicatat ke database',
       data: {
+        scan_id: savedScan.id,
         scan: savedScan,
         fusion: fusionResult
       }

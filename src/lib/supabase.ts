@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { ScanRecord, FusionResult, ImpactSummary } from '@/types/circulsense';
+import { ScanRecord, FusionResult, ImpactSummary, VisualData, GasData } from '@/types/circulsense';
 
 // Sanitize URL in case /rest/v1 was appended
 let rawUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
@@ -61,7 +61,7 @@ export async function fetchScanRecords(): Promise<ScanRecord[]> {
           visual_condition: row.kondisi_visual || row.visual_condition || '',
           action_taken: row.tindakan_diambil || row.action_taken || '',
           recommendation_title: row.judul_rekomendasi || row.recommendation_title || '',
-          saved_weight_kg: Number(row.estimasi_berat_kg ?? row.saved_weight_kg ?? 0.5),
+          saved_weight_kg: Number(row.estimasi_berat_kg ?? row.saved_weight_kg ?? 5.0),
           prevented_ch4_g: Number(row.emisi_ch4_tercegah_g ?? row.prevented_ch4_g ?? 0),
           prevented_co2e_g: Number(row.emisi_co2e_tercegah_g ?? row.prevented_co2e_g ?? 0),
           financial_savings_idr: Number(row.penghematan_rupiah ?? row.financial_savings_idr ?? 0),
@@ -69,7 +69,15 @@ export async function fetchScanRecords(): Promise<ScanRecord[]> {
           temperature: row.suhu_lingkungan_c ?? row.temperature,
           humidity: row.kelembapan_relatif_rh ?? row.humidity,
           color_hex: row.spektrum_warna_hex ?? row.color_hex,
-          color_name: row.spektrum_nama_warna ?? row.color_name
+          color_name: row.spektrum_nama_warna ?? row.color_name,
+          // Shelf-Life & Merchant Inventory Mapping
+          shelf_life_hours: Number(row.sisa_umur_simpan_jam ?? row.shelf_life_hours ?? 48),
+          shelf_life_days: Number(row.sisa_hari_simpan ?? row.shelf_life_days ?? 2.0),
+          ripeness_stage: row.fase_kematangan || row.ripeness_stage || 'Fullripe (Matang Optimal)',
+          disease_detected: row.deteksi_penyakit || row.disease_detected || 'Normal (Bebas Jamur)',
+          inventory_action: row.tindakan_stok_pedagang || row.inventory_action || 'Pajang di Etalase Depan Segera',
+          pricing_strategy: row.rekomendasi_harga || row.pricing_strategy || 'Harga Normal',
+          color_consistency: row.status_validasi_kroma || row.color_consistency || 'Sangat Konsisten'
         }));
 
         if (typeof window !== 'undefined') {
@@ -145,7 +153,7 @@ export async function saveScanRecord(fusion: FusionResult): Promise<ScanRecord> 
     gas_ch4_ppm: fusion.gas_summary.ch4_ppm,
     gas_aqi_ppm: fusion.gas_summary.aqi_ppm,
     visual_condition: fusion.gas_summary.visual_status,
-    action_taken: fusion.status === 'Busuk' ? 'Dibuat kompos aerobik' : `Diolah menjadi ${fusion.recommendation.title.toLowerCase()}`,
+    action_taken: fusion.shelf_life?.inventory_action || (fusion.status === 'Busuk' ? 'Dibuat kompos aerobik' : `Diolah menjadi ${fusion.recommendation.title.toLowerCase()}`),
     recommendation_title: fusion.recommendation.title,
     saved_weight_kg: fusion.saved_weight_kg,
     prevented_ch4_g: fusion.prevented_ch4_g,
@@ -155,44 +163,57 @@ export async function saveScanRecord(fusion: FusionResult): Promise<ScanRecord> 
     temperature: fusion.gas_summary.temperature,
     humidity: fusion.gas_summary.humidity,
     color_hex: fusion.gas_summary.color_hex,
-    color_name: fusion.gas_summary.color_name
+    color_name: fusion.gas_summary.color_name,
+    // Shelf-life & Merchant fields
+    shelf_life_hours: fusion.shelf_life?.hours_remaining ?? 48,
+    shelf_life_days: fusion.shelf_life?.days_remaining ?? 2.0,
+    ripeness_stage: fusion.shelf_life?.ripeness_stage ?? 'Fullripe (Matang Optimal)',
+    disease_detected: fusion.shelf_life?.disease_detected ?? 'Normal (Bebas Jamur)',
+    inventory_action: fusion.shelf_life?.inventory_action ?? 'Pajang di Etalase Depan Segera',
+    pricing_strategy: fusion.shelf_life?.pricing_strategy ?? 'Harga Normal',
+    color_consistency: fusion.shelf_life?.color_validation?.consistency_status ?? 'Sangat Konsisten'
   };
 
   // Insert into Supabase table
   if (supabase) {
     try {
-      // 1. Try Indonesian schema riwayat_pemindaian
-      if (currentUserId) {
-        const indonesianPayload = {
-          id: recordId,
-          id_pengguna: currentUserId,
-          nama_bahan: fusion.item_name,
-          kategori_bahan: fusion.category,
-          skor_kesegaran: fusion.freshness_score,
-          status_kesegaran: fusion.status,
-          warna_badge_status: fusion.status_badge_color,
-          ringkasan_analisis: fusion.status_summary,
-          kondisi_visual: fusion.gas_summary.visual_status,
-          tindakan_diambil: newRecord.action_taken,
-          judul_rekomendasi: fusion.recommendation.title,
-          gas_ch4_ppm: fusion.gas_summary.ch4_ppm,
-          gas_aqi_ppm: fusion.gas_summary.aqi_ppm,
-          suhu_lingkungan_c: fusion.gas_summary.temperature ?? 27.0,
-          kelembapan_relatif_rh: fusion.gas_summary.humidity ?? 65.0,
-          spektrum_warna_hex: fusion.gas_summary.color_hex ?? '#E44034',
-          spektrum_nama_warna: fusion.gas_summary.color_name ?? 'Merah Matang',
-          estimasi_berat_kg: fusion.saved_weight_kg,
-          emisi_ch4_tercegah_g: fusion.prevented_ch4_g,
-          emisi_co2e_tercegah_g: fusion.prevented_co2e_g,
-          penghematan_rupiah: fusion.financial_savings_idr,
-          foto_sampel_url: fusion.image_url,
-          dibuat_pada: nowIso
-        };
+      const effectiveUserId = currentUserId || 'cf9ef20e-2c03-4f8e-aa4b-636913f0f627';
+      const indonesianPayload = {
+        id: recordId,
+        id_pengguna: effectiveUserId,
+        nama_bahan: fusion.item_name,
+        kategori_bahan: fusion.category,
+        skor_kesegaran: fusion.freshness_score,
+        status_kesegaran: fusion.status,
+        warna_badge_status: fusion.status_badge_color,
+        ringkasan_analisis: fusion.status_summary,
+        kondisi_visual: fusion.gas_summary.visual_status,
+        tindakan_diambil: newRecord.action_taken,
+        judul_rekomendasi: fusion.recommendation.title,
+        gas_ch4_ppm: fusion.gas_summary.ch4_ppm,
+        gas_aqi_ppm: fusion.gas_summary.aqi_ppm,
+        suhu_lingkungan_c: fusion.gas_summary.temperature ?? 27.0,
+        kelembapan_relatif_rh: fusion.gas_summary.humidity ?? 65.0,
+        spektrum_warna_hex: fusion.gas_summary.color_hex ?? '#DC2626',
+        spektrum_nama_warna: fusion.gas_summary.color_name ?? 'Merah Stroberi Terang',
+        estimasi_berat_kg: fusion.saved_weight_kg,
+        emisi_ch4_tercegah_g: fusion.prevented_ch4_g,
+        emisi_co2e_tercegah_g: fusion.prevented_co2e_g,
+        penghematan_rupiah: fusion.financial_savings_idr,
+        foto_sampel_url: fusion.image_url,
+        sisa_umur_simpan_jam: fusion.shelf_life?.hours_remaining ?? 48,
+        sisa_hari_simpan: fusion.shelf_life?.days_remaining ?? 2.0,
+        fase_kematangan: fusion.shelf_life?.ripeness_stage ?? 'Fullripe (Matang Optimal)',
+        deteksi_penyakit: fusion.shelf_life?.disease_detected ?? 'Normal (Bebas Jamur)',
+        tindakan_stok_pedagang: fusion.shelf_life?.inventory_action ?? 'Pajang di Etalase Depan Segera',
+        rekomendasi_harga: fusion.shelf_life?.pricing_strategy ?? 'Harga Normal',
+        status_validasi_kroma: fusion.shelf_life?.color_validation?.consistency_status ?? 'Sangat Konsisten',
+        dibuat_pada: nowIso
+      };
 
-        const { error: errIdn } = await supabase.from('riwayat_pemindaian').insert([indonesianPayload]);
-        if (!errIdn) {
-          console.log('[Supabase] Saved to riwayat_pemindaian successfully');
-        }
+      const { error: errIdn } = await supabase.from('riwayat_pemindaian').insert([indonesianPayload]);
+      if (!errIdn) {
+        console.log('[Supabase] Saved to riwayat_pemindaian successfully with shelf-life');
       }
 
       // 2. Also insert to scans table if available
@@ -277,4 +298,82 @@ export function calculateImpactSummary(records: ScanRecord[], monthName: string 
     trees_absorbed,
     total_financial_saved_idr
   };
+}
+
+/**
+ * Buat antrean scan baru ke Supabase agar ditangkap dan diproses otomatis
+ * oleh Worker Model AI Python lokal (run_demo.bat).
+ */
+export async function submitScanTask(visual: VisualData, gas: GasData): Promise<string | null> {
+  if (!supabase) return null;
+  const recordId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'scan-' + Date.now();
+  const nowIso = new Date().toISOString();
+
+  let currentUserId: string | null = null;
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    currentUserId = authData?.user?.id || null;
+  } catch {}
+
+  const effectiveUserId = currentUserId || 'cf9ef20e-2c03-4f8e-aa4b-636913f0f627';
+
+  const pendingPayload = {
+    id: recordId,
+    id_pengguna: effectiveUserId,
+    nama_bahan: 'Stroberi',
+    kategori_bahan: 'Buah',
+    skor_kesegaran: 3,
+    status_kesegaran: 'Menunggu Model ML...',
+    warna_badge_status: 'yellow',
+    ringkasan_analisis: 'Sedang dianalisis oleh model YOLOv8 & Early Multimodal Fusion di terminal lokal...',
+    kondisi_visual: 'Menunggu inferensi...',
+    tindakan_diambil: 'Memproses...',
+    judul_rekomendasi: 'Memproses analisis inventaris...',
+    gas_ch4_ppm: gas.ch4_ppm ?? 0.0,
+    gas_aqi_ppm: gas.aqi_ppm ?? 0.0,
+    suhu_lingkungan_c: gas.temperature ?? 27.0,
+    kelembapan_relatif_rh: gas.humidity ?? 65.0,
+    spektrum_warna_hex: gas.color_hex ?? '#DC2626',
+    spektrum_nama_warna: gas.color_name ?? 'Merah Stroberi',
+    foto_sampel_url: visual.image_url,
+    estimasi_berat_kg: 0.5,
+    emisi_ch4_tercegah_g: 6.25,
+    emisi_co2e_tercegah_g: 175.0,
+    penghematan_rupiah: 10000,
+    dibuat_pada: nowIso
+  };
+
+  const { error } = await supabase.from('riwayat_pemindaian').insert([pendingPayload]);
+  if (error) {
+    console.warn('[Supabase] Gagal membuat antrean scan:', error);
+    return null;
+  }
+  return recordId;
+}
+
+/**
+ * Polling hasil inferensi dari Worker Python lokal (maksimal 5 detik).
+ * Jika worker menyelesaikan analisis, record akan memiliki status_kesegaran aktual.
+ */
+export async function pollScanResult(recordId: string, maxWaitMs = 5000): Promise<any | null> {
+  if (!supabase) return null;
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const { data, error } = await supabase
+        .from('riwayat_pemindaian')
+        .select('*')
+        .eq('id', recordId)
+        .maybeSingle();
+
+      if (!error && data && data.status_kesegaran !== 'Menunggu Model ML...') {
+        return data;
+      }
+    } catch {}
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }
+
+  return null;
 }

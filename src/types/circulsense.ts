@@ -1,5 +1,41 @@
 export type FreshnessStatus = 'Segar' | 'Layu' | 'Busuk' | 'Terlalu Matang';
 
+export type RipenessStage = 'Unripe (Mentah)' | 'Semiripe (Setengah Matang)' | 'Fullripe (Matang Optimal)' | 'Overripe (Lewat Matang)';
+
+export type DiseaseStatus = 'Normal (Bebas Jamur)' | 'Risiko Gray Mold (Botrytis)' | 'Powdery Mildew' | 'Black Spot';
+
+export type InventoryAction = 
+  | 'Simpan di Gudang / Stok Cadangan'
+  | 'Pajang di Etalase Depan Segera'
+  | 'Diskon / Jual Cepat Hari Ini'
+  | 'Alihkan ke Pengolah Selai / Jus'
+  | 'Pilah ke Komposter Organik / Bio-fermentasi';
+
+export type PricingAction = 'Harga Normal' | 'Diskon 15-20%' | 'Diskon 30-50%' | 'Jual Murah Borongan' | 'Bahan Baku Olahan';
+
+export interface ColorValidationDetail {
+  sensor_hex: string;
+  sensor_name: string;
+  red_ratio: number; // R / (R + G + B)
+  lux: number;
+  color_temp_kelvin: number;
+  consistency_status: 'Sangat Konsisten' | 'Tervalidasi (Pencahayaan Redup Terkoreksi)' | 'Peringatan Anomali Warna' | 'Belum Ada Data Sensor';
+  message: string;
+}
+
+export interface ShelfLifeDetail {
+  hours_remaining: number;       // e.g. 48 jam
+  days_remaining: number;        // e.g. 2.0 hari
+  time_to_mature_hours?: number; // e.g. 0 jika sudah matang, atau 48 jika mentah
+  ripeness_stage: RipenessStage;
+  disease_detected: DiseaseStatus;
+  inventory_action: InventoryAction;
+  pricing_strategy: PricingAction;
+  urgency_level: 'Aman' | 'Perhatian' | 'Kritis' | 'Kedaluwarsa';
+  environmental_stress_factor: number; // Pengali stres suhu/RH dari DHT22 (1.0 = normal, >1.5 = laju pembusukan dipercepat)
+  color_validation: ColorValidationDetail;
+}
+
 export interface GasData {
   ch4_ppm?: number | null;       // MQ-4 Methane gas in ppm
   aqi_ppm?: number | null;       // MQ-135 Air quality / NH3 in ppm
@@ -30,11 +66,12 @@ export interface VisualData {
   visual_score: number;  // 1-5
   defects: string[];     // e.g. ['Bintik Hitam', 'Tekstur Lembek', 'Kulit Berkerut']
   image_url: string;
+  batch_weight_kg?: number; // Kuantitas batch pedagang (misal 5 kg atau 20 kg peti)
 }
 
 export interface UpcyclingRecommendation {
   id: string;
-  type: 'Resep Masakan' | 'Kompos' | 'Eco Enzyme';
+  type: 'Resep Masakan' | 'Kompos' | 'Eco Enzyme' | 'Pengolahan UMKM';
   title: string;
   subtitle: string;
   prep_time?: string;
@@ -53,6 +90,7 @@ export interface FusionResult {
   status: FreshnessStatus;
   status_badge_color: 'green' | 'yellow' | 'red';
   status_summary: string;
+  shelf_life: ShelfLifeDetail; // Prediksi Umur Simpan & Keputusan Inventaris Pedagang
   gas_summary: {
     ch4_ppm: number;
     ch4_status: 'Rendah' | 'Sedang' | 'Tinggi';
@@ -76,6 +114,9 @@ export interface FusionResult {
   financial_savings_idr: number;
   scan_time: string;
   image_url: string;
+  is_live_ml?: boolean;
+  ml_server_url?: string;
+  detection_bbox?: number[];
 }
 
 export interface ScanRecord {
@@ -104,6 +145,14 @@ export interface ScanRecord {
   color_b?: number | null;
   color_lux?: number | null;
   color_temp?: number | null;
+  // Kolom Prediksi Umur Simpan Pedagang
+  shelf_life_hours?: number;
+  shelf_life_days?: number;
+  ripeness_stage?: string;
+  disease_detected?: string;
+  inventory_action?: string;
+  pricing_strategy?: string;
+  color_consistency?: string;
 }
 
 export interface ImpactSummary {

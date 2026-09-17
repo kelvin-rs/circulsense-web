@@ -372,9 +372,16 @@ export default function RiwayatPage() {
                       <h3 className="font-extrabold text-[#0F172A] text-sm sm:text-base leading-tight truncate group-hover:text-[#2D7A38] transition">
                         {rec.item_name}
                       </h3>
-                      <p className="text-[11px] text-slate-400 font-medium mt-1 whitespace-nowrap">
-                        {formatDate(rec.created_at)}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        <p className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                          {formatDate(rec.created_at)}
+                        </p>
+                        {rec.shelf_life_hours != null && (
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            Sisa ~{rec.shelf_life_hours} Jam
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </Link>
 

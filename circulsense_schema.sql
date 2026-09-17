@@ -142,17 +142,26 @@ CREATE TABLE IF NOT EXISTS public.riwayat_pemindaian (
     kondisi_visual TEXT,
     tindakan_diambil TEXT,
     judul_rekomendasi TEXT,
+
+    -- Prediksi Umur Simpan (Shelf-Life) & Keputusan Inventaris Pedagang
+    sisa_umur_simpan_jam NUMERIC DEFAULT 48.0,
+    sisa_hari_simpan NUMERIC DEFAULT 2.0,
+    fase_kematangan TEXT DEFAULT 'Fullripe (Matang Optimal)',
+    deteksi_penyakit TEXT DEFAULT 'Normal (Bebas Jamur)',
+    tindakan_stok_pedagang TEXT DEFAULT 'Pajang di Etalase Depan Segera',
+    rekomendasi_harga TEXT DEFAULT 'Harga Normal',
+    status_validasi_kroma TEXT DEFAULT 'Sangat Konsisten',
     
     -- Cuplikan Nilai Sensor
     gas_ch4_ppm NUMERIC DEFAULT 0.0,
     gas_aqi_ppm NUMERIC DEFAULT 0,
     suhu_lingkungan_c NUMERIC DEFAULT 27.0,
     kelembapan_relatif_rh NUMERIC DEFAULT 65.0,
-    spektrum_warna_hex TEXT DEFAULT '#E44034',
-    spektrum_nama_warna TEXT DEFAULT 'Merah Matang',
+    spektrum_warna_hex TEXT DEFAULT '#DC2626',
+    spektrum_nama_warna TEXT DEFAULT 'Merah Stroberi Terang',
     
-    -- Kalkulasi Dampak Lingkungan & Finansial
-    estimasi_berat_kg NUMERIC NOT NULL DEFAULT 0.5,
+    -- Kalkulasi Dampak Lingkungan & Finansial (Loss Prevention & Zero Waste)
+    estimasi_berat_kg NUMERIC NOT NULL DEFAULT 5.0,
     emisi_ch4_tercegah_g NUMERIC NOT NULL DEFAULT 0.0,
     emisi_co2e_tercegah_g NUMERIC NOT NULL DEFAULT 0.0,
     penghematan_rupiah NUMERIC NOT NULL DEFAULT 0,

@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python & bridge
+.venv_bridge/
+__pycache__/
+*.pyc
+cloudflared.exe
+

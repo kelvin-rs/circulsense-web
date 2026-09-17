@@ -1,14 +1,27 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Image as ImageIcon, RotateCw, CheckCircle2, X, Thermometer, Droplets, Palette, Sun, Activity, Sparkles, Wind } from 'lucide-react';
+import {
+  Camera,
+  Upload,
+  Sparkles,
+  CheckCircle2,
+  X,
+  RefreshCw,
+  Image as ImageIcon,
+  Activity,
+  Wind,
+  Thermometer,
+  Palette,
+  Droplets,
+  Clock
+} from 'lucide-react';
 import { GasData, VisualData } from '@/types/circulsense';
 
 interface PindaiBahanProps {
   gasData: GasData;
   onStartAnalysis: (visualData: VisualData) => void;
   onCameraStateChange?: (isOpen: boolean) => void;
-  onOpenTipsModal?: () => void;
   triggerCameraCount?: number;
 }
 
@@ -16,11 +29,12 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   gasData,
   onStartAnalysis,
   onCameraStateChange,
-  triggerCameraCount = 0
+  triggerCameraCount = 0,
 }) => {
   const [useLiveCamera, setUseLiveCamera] = useState<boolean>(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [detectedFoodName, setDetectedFoodName] = useState<string>('Tomat');
+  const detectedFoodName = 'Stroberi';
+  const batchWeightKg = 1.0;
   const [detectedConfidence, setDetectedConfidence] = useState<number>(0.96);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
 
@@ -41,7 +55,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('buka_kamera') === 'true') {
         setUseLiveCamera(true);
-        // Bersihkan query param agar rapi tanpa reload
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
@@ -101,7 +114,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setCapturedImage(dataUrl);
-        setDetectedFoodName('Tomat');
         setDetectedConfidence(0.96);
         setUseLiveCamera(false);
         onCameraStateChange?.(false);
@@ -112,12 +124,16 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCapturedImage(url);
-      setDetectedFoodName('Tomat');
-      setDetectedConfidence(0.95);
-      setUseLiveCamera(false);
-      onCameraStateChange?.(false);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setCapturedImage(event.target.result as string);
+          setDetectedConfidence(0.95);
+          setUseLiveCamera(false);
+          onCameraStateChange?.(false);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -132,15 +148,18 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     }
 
     const visualPayload: VisualData = {
-      item_name: detectedFoodName || 'Tomat',
-      category: ['Tomat', 'Pisang', 'Apel'].includes(detectedFoodName) ? 'Buah' : 'Sayur',
+      item_name: 'Stroberi',
+      category: 'Buah',
       confidence: detectedConfidence,
       visual_score: 3,
-      defects: ['Tekstur Lembek', 'Kulit Berkerut'],
-      image_url: capturedImage
+      defects: ['Tekstur Lunak'],
+      image_url: capturedImage,
+      batch_weight_kg: batchWeightKg
     };
     onStartAnalysis(visualPayload);
   };
+
+  const hasPhysicalTelemetry = gasData.has_data || gasData.is_connected;
 
   return (
     <div className="space-y-10 pb-24 md:pb-16">
@@ -150,108 +169,123 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
         accept="image/*"
         onChange={handleFileUpload}
         className="hidden"
-      />
-      <button
-        id="btn-activate-camera"
-        type="button"
-        onClick={activateCamera}
-        className="hidden"
-        aria-hidden="true"
+        title="Unggah Foto dari Galeri"
+        aria-label="Unggah Foto dari Galeri"
       />
 
-      {/* FULLSCREEN IMMERSIVE CAMERA OVERLAY (100% COVERING VIEWPORT) */}
+      {/* FULLSCREEN CAMERA MODAL OVERLAY */}
       {useLiveCamera && (
-        <div className="fixed inset-0 z-[9999] w-screen h-[100dvh] bg-black flex flex-col justify-between overflow-hidden">
-          {/* Live Video Feed filling the screen */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-cover z-0"
-          />
-
-          {/* Top Bar Overlay */}
-          <div className="relative z-10 p-5 pt-8 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden">
+          {/* Top Bar Floating Controls */}
+          <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between p-4 sm:p-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
             <button
               type="button"
-              onClick={() => {
-                setUseLiveCamera(false);
-                onCameraStateChange?.(false);
-              }}
-              className="w-10 h-10 rounded-full bg-black/60 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/80 transition cursor-pointer"
+              onClick={() => setUseLiveCamera(false)}
+              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/20 flex items-center justify-center transition active:scale-95 cursor-pointer"
+              title="Tutup Kamera"
+              aria-label="Tutup Kamera"
             >
               <X className="w-5 h-5" />
             </button>
-            <span className="text-white font-bold text-sm tracking-wide">Pindai Bahan Pangan</span>
-            <div className="w-10" />
+
+            <div className="flex items-center space-x-2 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs font-semibold text-white tracking-wide">
+                Kamera Upcycling Siap Pindai
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCameraFacing((prev) => (prev === 'environment' ? 'user' : 'environment'))}
+              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/20 flex items-center justify-center transition active:scale-95 cursor-pointer"
+              title="Putar Kamera"
+              aria-label="Putar Kamera"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Bottom Controls Bar Overlay */}
-          <div className="relative z-10 pb-12 sm:pb-10 px-8 flex items-center justify-between bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-            <button
-              type="button"
-              onClick={() => setCameraFacing(cameraFacing === 'environment' ? 'user' : 'environment')}
-              className="w-13 h-13 rounded-full bg-white/90 text-slate-800 shadow-xl flex items-center justify-center transition active:scale-90 cursor-pointer hover:bg-white"
-              title="Ganti Kamera Depan/Belakang"
-            >
-              <RotateCw className="w-6 h-6 text-slate-800" />
-            </button>
+          {/* Camera Video Stream */}
+          <div className="relative w-full h-full flex items-center justify-center bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
 
-            <button
-              type="button"
-              onClick={handleTakeSnapshot}
-              className="w-18 h-18 rounded-full bg-white border-4 border-[#2D7A38] text-[#2D7A38] shadow-2xl flex items-center justify-center transition active:scale-90 cursor-pointer ring-4 ring-white/30"
-              title="Ambil Foto"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#2D7A38]" />
-            </button>
+            {/* Targeted Scanner Frame Grid */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6 sm:p-12">
+              <div className="relative w-full max-w-sm aspect-square border-2 border-dashed border-white/60 rounded-3xl flex items-center justify-center">
+                {/* Corner Markers */}
+                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#16A34A] rounded-tl-xl" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#16A34A] rounded-tr-xl" />
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#16A34A] rounded-bl-xl" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#16A34A] rounded-br-xl" />
 
+                <div className="text-center px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full text-[11px] sm:text-xs text-white/90 font-medium tracking-wide">
+                  Posisikan buah stroberi di dalam kotak
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Floating Shutter Controls */}
+          <div className="absolute bottom-0 inset-x-0 z-20 flex items-center justify-around p-6 pb-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+            {/* Gallery Upload Alternate */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-13 h-13 rounded-full bg-white/90 text-slate-800 shadow-xl flex items-center justify-center transition active:scale-90 cursor-pointer hover:bg-white"
-              title="Unggah dari Galeri / File"
+              className="flex flex-col items-center space-y-1 text-white/80 hover:text-white transition active:scale-95 cursor-pointer"
             >
-              <ImageIcon className="w-6 h-6 text-[#2D7A38]" />
+              <div className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                <Upload className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] font-medium tracking-tight">Galeri</span>
             </button>
+
+            {/* Shutter Button */}
+            <button
+              type="button"
+              onClick={handleTakeSnapshot}
+              className="w-18 h-18 sm:w-20 sm:h-20 rounded-full border-4 border-white p-1 flex items-center justify-center transition active:scale-90 hover:opacity-95 shadow-2xl cursor-pointer"
+              title="Ambil Foto"
+              aria-label="Ambil Foto"
+            >
+              <div className="w-full h-full rounded-full bg-white transition hover:bg-slate-100" />
+            </button>
+
+            <div className="w-11" />
           </div>
         </div>
       )}
 
-      {/* 1. HERO SECTION AT TOP (SEAMLESS) */}
+      {/* 1. HERO SECTION AT TOP - MERCHANT / BUSINESS PROPOSITION */}
       <section className="space-y-4 pt-1 pb-2 max-w-4xl">
-        <div className="inline-block bg-[#DCFCE7] text-[#166534] text-[11px] sm:text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-[#BBF7D0]">
-          Inovasi Fusi Sensor Multimodal IoT & Edge AI
+        <div className="inline-flex items-center space-x-1.5 bg-[#DCFCE7] text-[#166534] text-[11px] sm:text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-[#BBF7D0]">
+          <Clock className="w-3.5 h-3.5 text-[#166534]" />
+          <span>Sistem Peringatan Dini Umur Simpan Buah Stroberi & Manajemen Stok Pedagang</span>
         </div>
 
         <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-[1.2]">
-          Optimalkan Nilai Pangan dengan <span className="text-[#16A34A]">Fusi Sensor AI</span>
+          Prediksi Umur Simpan Stroberi & <span className="text-[#16A34A]">Efisiensi Stok Pedagang</span>
         </h1>
 
-        <p className="text-xs sm:text-sm md:text-base text-[#475569] leading-relaxed max-w-2xl">
-          Sistem terintegrasi yang memadukan deteksi visual kamera, telemetri gas biokimia (MQ-4 & MQ-135), suhu & kelembapan (DHT22), serta analisis kroma spektral (TCS34725) untuk evaluasi kesegaran bahan pangan presisi tinggi.
+        <p className="text-xs sm:text-sm md:text-base text-[#475569] leading-relaxed max-w-3xl">
+          Memberikan <strong>kepastian sisa umur simpan buah stroberi secara objektif</strong>. Mengubah potensi rugi total pembusukan menjadi keuntungan melalui rekomendasi stok gudang, display etalase depan, atau diskon cepat.
         </p>
 
         {/* 4 Metric Summary Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 pt-4 border-t border-[#F1F5F9]">
           <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
             <div className="flex items-center space-x-1.5">
-              <Wind className="w-3.5 h-3.5 text-[#2D7A38]" />
-              <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">MQ-4 & 135</span>
-            </div>
-            <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              Emisi Bio-Gas
-            </p>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="flex items-center space-x-1.5">
               <Thermometer className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">DHT22</span>
             </div>
             <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              Suhu & Kelembapan
+              Suhu & Stres RH
             </p>
           </div>
 
@@ -261,17 +295,27 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
               <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">TCS34725</span>
             </div>
             <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              Spektral Warna RGB
+              Validasi Kroma Warna
             </p>
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
             <div className="flex items-center space-x-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
-              <span className="text-xs sm:text-sm font-extrabold text-[#16A34A]">Edge AI</span>
+              <Wind className="w-3.5 h-3.5 text-[#2D7A38]" />
+              <span className="text-xs sm:text-sm font-extrabold text-[#0F172A]">MQ-4 & 135</span>
             </div>
             <p className="text-[10px] sm:text-xs text-[#64748B] font-medium leading-tight mt-0.5">
-              YOLO Multimodal
+              Deteksi Gas Pembusukan
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/60">
+            <div className="flex items-center space-x-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
+              <span className="text-xs sm:text-sm font-extrabold text-[#166534]">Shelf-Life AI</span>
+            </div>
+            <p className="text-[10px] sm:text-xs text-[#166534] font-medium leading-tight mt-0.5">
+              Prediksi Jam Simpan
             </p>
           </div>
         </div>
@@ -281,10 +325,10 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       <section id="camera-viewport" ref={cameraSectionRef} className="space-y-4 pt-4 border-t border-[#F1F5F9]">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-            Hasil Citra & Pengambilan Gambar
+            Pemindaian Citra Sampel Buah Stroberi
           </h2>
           <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
-            Arahkan bahan pangan ke dalam area kamera atau pilih dari galeri
+            Arahkan kamera ke sampel buah stroberi untuk memprediksi sisa umur simpan secara objektif
           </p>
         </div>
 
@@ -294,13 +338,13 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
           <div className={capturedImage ? "lg:col-span-7 space-y-3" : "lg:col-span-12 max-w-3xl w-full space-y-3"}>
             <div className="flex items-center justify-between gap-2 pb-1">
               <span className="text-xs font-extrabold text-[#0F172A] uppercase tracking-wider">
-                {capturedImage ? 'Hasil Tangkapan Citra' : 'Viewport Kamera'}
+                {capturedImage ? 'Hasil Tangkapan Citra Sampel' : 'Viewport Kamera Galaxy Upcycling'}
               </span>
 
               {capturedImage && (
                 <span className="text-[11px] font-bold text-[#166534] bg-[#DCFCE7] px-2.5 py-0.5 rounded-full flex items-center space-x-1 shrink-0 border border-[#BBF7D0]">
                   <CheckCircle2 className="w-3 h-3" />
-                  <span>Tersimpan</span>
+                  <span>Sampel Stroberi Siap Dianalisis</span>
                 </span>
               )}
             </div>
@@ -311,7 +355,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 <div className="relative w-full h-full">
                   <img
                     src={capturedImage}
-                    alt="Hasil Tangkapan Citra Bahan"
+                    alt="Hasil Tangkapan Citra Stroberi"
                     className="w-full h-full object-cover"
                   />
                   <button
@@ -334,10 +378,10 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                   </div>
                   <div>
                     <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-[#4ADE80] transition">
-                      Ketuk untuk Membuka Kamera
+                      Ketuk untuk Membuka Kamera Pindai
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Kamera langsung dengan opsi unggah foto galeri
+                      Gunakan kamera bawaan ponsel lawas atau unggah dari galeri
                     </p>
                   </div>
                 </div>
@@ -371,8 +415,11 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
           {capturedImage && (
             <div className="lg:col-span-5 space-y-4">
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider border-b border-[#F1F5F9] pb-2">
-                  Parameter & Deteksi Otomatis AI
+                <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider border-b border-[#F1F5F9] pb-2 flex items-center justify-between">
+                  <span>Parameter Input AI & Sensor</span>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded">
+                    Komoditas: Stroberi
+                  </span>
                 </h3>
 
                 {/* Telemetry Metrics List */}
@@ -380,9 +427,9 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                   {/* Auto Detection Row */}
                   <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                     <div>
-                      <span className="text-[#64748B] block font-medium">Bahan Terdeteksi (AI):</span>
+                      <span className="text-[#64748B] block font-medium">Bahan Fokus:</span>
                       <strong className="text-sm font-extrabold text-[#0F172A]">
-                        {detectedFoodName}
+                        🍓 Stroberi
                       </strong>
                     </div>
                     <span className="text-[11px] font-bold text-[#166534] bg-[#DCFCE7] px-2 py-0.5 rounded-md border border-[#BBF7D0]">
@@ -397,13 +444,15 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                         <Thermometer className="w-3.5 h-3.5 text-blue-600" />
                         <span className="text-[#64748B] font-medium">Suhu & Kelembapan (DHT22):</span>
                       </div>
-                      <span className="text-[10px] text-[#94A3B8]">Iklim Ruang Sampel</span>
+                      <span className="text-[10px] text-[#94A3B8]">
+                        {gasData.temperature ? 'Laju respirasi fisik' : 'Sensor fisik belum terhubung'}
+                      </span>
                     </div>
                     <div className="text-right">
                       <div className="font-mono text-sm font-extrabold text-[#0F172A]">
-                        {gasData.temperature != null ? `${gasData.temperature.toFixed(1)}°C` : '-'}
+                        {gasData.temperature ? `${gasData.temperature.toFixed(1)}°C` : '0.0°C'}
                         <span className="text-xs text-[#64748B] ml-1.5">
-                          • {gasData.humidity != null ? `${gasData.humidity.toFixed(0)}% RH` : '-'}
+                          • {gasData.humidity ? `${gasData.humidity.toFixed(0)}% RH` : '0% RH'}
                         </span>
                       </div>
                     </div>
@@ -414,24 +463,19 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                     <div>
                       <div className="flex items-center space-x-1.5">
                         <Palette className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-[#64748B] font-medium">Spektrum Warna (TCS34725):</span>
+                        <span className="text-[#64748B] font-medium">Sensor Warna (TCS34725):</span>
                       </div>
                       <span className="text-[10px] text-[#94A3B8]">
-                        {gasData.color_name || '-'}
+                        {gasData.color_name || 'Belum Ada Data Sensor'}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {gasData.color_hex ? (
-                        <div
-                          className="w-5 h-5 rounded-full border border-black/20 shadow-xs shrink-0"
-                          style={{ backgroundColor: gasData.color_hex }}
-                          title={`Hex: ${gasData.color_hex}`}
-                        />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 bg-slate-100 shrink-0" />
-                      )}
+                      <div
+                        className="w-5 h-5 rounded-full border border-black/20 shadow-xs shrink-0"
+                        style={{ backgroundColor: gasData.color_hex || '#000000' }}
+                      />
                       <span className="font-mono text-xs font-bold text-[#0F172A]">
-                        {gasData.color_hex || '-'}
+                        {gasData.color_hex || '0'}
                       </span>
                     </div>
                   </div>
@@ -444,27 +488,23 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-sm font-extrabold text-[#0F172A]">
-                        {gasData.ch4_ppm != null ? gasData.ch4_ppm.toFixed(2) : '-'}
+                        {gasData.ch4_ppm != null ? gasData.ch4_ppm.toFixed(2) : '0.00'}
                       </span>
-                      {gasData.ch4_ppm != null && (
-                        <span className="text-[11px] font-mono text-[#64748B] ml-1">ppm</span>
-                      )}
+                      <span className="text-[11px] font-mono text-[#64748B] ml-1">ppm</span>
                     </div>
                   </div>
 
                   {/* Telemetri MQ-135 Row */}
                   <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                     <div>
-                      <span className="text-[#64748B] block font-medium">Sensor Kualitas (MQ-135):</span>
-                      <span className="text-[10px] text-[#94A3B8]">Amonia & Total VOC</span>
+                      <span className="text-[#64748B] block font-medium">Kualitas Udara & VOC (MQ-135):</span>
+                      <span className="text-[10px] text-[#94A3B8]">Amonia & Gas Volatil</span>
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-sm font-extrabold text-[#0F172A]">
-                        {gasData.aqi_ppm != null ? gasData.aqi_ppm : '-'}
+                        {gasData.aqi_ppm != null ? gasData.aqi_ppm : 0}
                       </span>
-                      {gasData.aqi_ppm != null && (
-                        <span className="text-[11px] font-mono text-[#64748B] ml-1">AQI</span>
-                      )}
+                      <span className="text-[11px] font-mono text-[#64748B] ml-1">AQI</span>
                     </div>
                   </div>
                 </div>
@@ -473,9 +513,9 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 <button
                   type="button"
                   onClick={handleStartAnalysis}
-                  className="w-full font-bold py-3.5 px-5 rounded-xl transition duration-150 flex items-center justify-center space-x-2 text-xs sm:text-sm cursor-pointer bg-[#2D7A38] hover:bg-[#23632D] text-white shadow-xs"
+                  className="w-full font-bold py-3.5 px-5 rounded-xl transition duration-150 flex items-center justify-center space-x-2 text-xs sm:text-sm cursor-pointer bg-[#16A34A] hover:bg-[#15803D] text-white shadow-md shadow-emerald-700/20"
                 >
-                  <span>Mulai Analisis Fusi Sensor</span>
+                  <span>Prediksi Umur Simpan Stroberi</span>
                   <span className="text-base font-bold">→</span>
                 </button>
               </div>
@@ -489,19 +529,19 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] tracking-tight">
-              Telemetri Sensor IoT Terpadu
+              Telemetri Node Sensor ESP32 (SirkulaBox)
             </h2>
             <p className="text-xs text-[#64748B]">
-              Pemantauan real-time data sensor
+              Data lingkungan dan biokimia pembacaan sensor fisik (tanpa data tiruan)
             </p>
           </div>
           <div className={`inline-flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full border w-fit ${
-            gasData.has_data || gasData.is_connected
+            hasPhysicalTelemetry
               ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
               : 'bg-slate-100 text-slate-600 border-slate-200'
           }`}>
-            <Activity className={`w-3.5 h-3.5 ${gasData.has_data || gasData.is_connected ? 'animate-pulse text-emerald-600' : 'text-slate-400'}`} />
-            <span>{gasData.has_data || gasData.is_connected ? 'Node Sensor Aktif' : 'Menunggu Transmisi Sensor'}</span>
+            <Activity className={`w-3.5 h-3.5 ${hasPhysicalTelemetry ? 'animate-pulse text-emerald-600' : 'text-slate-400'}`} />
+            <span>{hasPhysicalTelemetry ? 'Node Sensor ESP32 Online' : 'Sensor Belum Terhubung (Nilai 0)'}</span>
           </div>
         </div>
 
@@ -516,7 +556,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 </span>
               </div>
               <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                Termo-Hygro
+                Mikroklimat
               </span>
             </div>
 
@@ -525,22 +565,18 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 <span className="text-[10px] text-[#64748B] block font-medium">Suhu Ruang</span>
                 <div className="flex items-baseline space-x-1">
                   <span className="text-2xl font-black text-[#0F172A]">
-                    {gasData.temperature != null ? gasData.temperature.toFixed(1) : '-'}
+                    {gasData.temperature ? gasData.temperature.toFixed(1) : '0.0'}
                   </span>
-                  {gasData.temperature != null && (
-                    <span className="text-xs font-mono text-[#64748B]">°C</span>
-                  )}
+                  <span className="text-xs font-mono text-[#64748B]">°C</span>
                 </div>
               </div>
               <div>
                 <span className="text-[10px] text-[#64748B] block font-medium">Kelembapan</span>
                 <div className="flex items-baseline space-x-1">
                   <span className="text-2xl font-black text-[#0F172A]">
-                    {gasData.humidity != null ? gasData.humidity.toFixed(0) : '-'}
+                    {gasData.humidity ? gasData.humidity.toFixed(0) : '0'}
                   </span>
-                  {gasData.humidity != null && (
-                    <span className="text-xs font-mono text-[#64748B]">% RH</span>
-                  )}
+                  <span className="text-xs font-mono text-[#64748B]">% RH</span>
                 </div>
               </div>
             </div>
@@ -548,10 +584,10 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
               <span className="flex items-center space-x-1">
                 <Droplets className="w-3 h-3 text-blue-500" />
-                <span>Kondisi Simpan:</span>
+                <span>Status Sensor:</span>
               </span>
-              <span className={`font-semibold ${gasData.temperature != null ? 'text-[#166534]' : 'text-slate-400'}`}>
-                {gasData.temperature != null ? 'Optimal (20-30°C)' : '-'}
+              <span className="font-semibold text-slate-700">
+                {gasData.temperature ? `${gasData.temperature.toFixed(1)}°C` : 'Nilai 0'}
               </span>
             </div>
           </div>
@@ -566,50 +602,38 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 </span>
               </div>
               <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                RGB + Lux
+                Validasi Kroma
               </span>
             </div>
 
             <div className="flex items-center space-x-3 pt-1">
               <div
-                className={`w-11 h-11 rounded-xl shadow-inner border shrink-0 flex items-center justify-center transition-all duration-300 ${
-                  gasData.color_hex ? 'border-black/15' : 'border-dashed border-slate-300 bg-slate-100'
-                }`}
-                style={gasData.color_hex ? { backgroundColor: gasData.color_hex } : undefined}
+                className="w-11 h-11 rounded-xl shadow-inner border shrink-0 flex items-center justify-center transition-all duration-300 border-black/15"
+                style={{ backgroundColor: gasData.color_hex || '#000000' }}
               />
               <div className="min-w-0 flex-1">
                 <div className="font-mono text-sm font-extrabold text-[#0F172A] truncate">
-                  {gasData.color_hex || '-'}
+                  {gasData.color_hex || '0'}
                 </div>
                 <div className="text-[10px] text-[#64748B] font-medium truncate">
-                  {gasData.color_name || 'Menunggu transmisi sensor'}
+                  {gasData.color_name || 'Belum Ada Data Sensor'}
                 </div>
               </div>
             </div>
 
-            {/* Mini RGB distribution channels */}
             <div className="pt-2 border-t border-slate-100 space-y-1">
               <div className="flex items-center justify-between text-[10px] text-[#64748B]">
-                <span>R: {gasData.color_r ?? '-'}</span>
-                <span>G: {gasData.color_g ?? '-'}</span>
-                <span>B: {gasData.color_b ?? '-'}</span>
-                <span className="font-medium text-[#0F172A]">{gasData.color_lux != null ? `${gasData.color_lux} Lux` : '- Lux'}</span>
+                <span>R: {gasData.color_r ?? 0}</span>
+                <span>G: {gasData.color_g ?? 0}</span>
+                <span>B: {gasData.color_b ?? 0}</span>
+                <span className="font-medium text-[#0F172A]">{gasData.color_lux != null ? `${gasData.color_lux} Lux` : '0 Lux'}</span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden flex">
-                {gasData.color_r != null && gasData.color_g != null && gasData.color_b != null ? (
+                {gasData.color_r || gasData.color_g || gasData.color_b ? (
                   <>
-                    <div
-                      className="bg-red-500 h-full"
-                      style={{ width: `${(gasData.color_r / (gasData.color_r + gasData.color_g + gasData.color_b || 1)) * 100}%` }}
-                    />
-                    <div
-                      className="bg-green-500 h-full"
-                      style={{ width: `${(gasData.color_g / (gasData.color_r + gasData.color_g + gasData.color_b || 1)) * 100}%` }}
-                    />
-                    <div
-                      className="bg-blue-500 h-full"
-                      style={{ width: `${(gasData.color_b / (gasData.color_r + gasData.color_g + gasData.color_b || 1)) * 100}%` }}
-                    />
+                    <div className="bg-red-500 h-full" style={{ width: `${((gasData.color_r || 0) / ((gasData.color_r || 0) + (gasData.color_g || 0) + (gasData.color_b || 1))) * 100}%` }} />
+                    <div className="bg-green-500 h-full" style={{ width: `${((gasData.color_g || 0) / ((gasData.color_r || 0) + (gasData.color_g || 0) + (gasData.color_b || 1))) * 100}%` }} />
+                    <div className="bg-blue-500 h-full" style={{ width: `${((gasData.color_b || 0) / ((gasData.color_r || 0) + (gasData.color_g || 0) + (gasData.color_b || 1))) * 100}%` }} />
                   </>
                 ) : (
                   <div className="bg-slate-200 h-full w-full" />
@@ -627,26 +651,22 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                   MQ-4 (Metana)
                 </span>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                gasData.ch4_ppm != null ? 'text-[#166534] bg-[#DCFCE7] border-[#BBF7D0]' : 'text-slate-500 bg-slate-100 border-slate-200'
-              }`}>
-                {gasData.ch4_ppm != null ? '$CH_4$ Terdeteksi' : 'Belum Ada Data'}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-600 bg-slate-100 border-slate-200">
+                $CH_4$ Pembusukan
               </span>
             </div>
 
             <div className="flex items-baseline space-x-1.5 pt-1">
               <span className="text-2xl font-black text-[#0F172A]">
-                {gasData.ch4_ppm != null ? gasData.ch4_ppm.toFixed(2) : '-'}
+                {gasData.ch4_ppm != null ? gasData.ch4_ppm.toFixed(2) : '0.00'}
               </span>
-              {gasData.ch4_ppm != null && (
-                <span className="text-xs font-mono text-[#64748B]">ppm</span>
-              )}
+              <span className="text-xs font-mono text-[#64748B]">ppm</span>
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-              <span>Ambang Segar:</span>
-              <span className={`font-semibold ${gasData.ch4_ppm != null ? 'text-[#166534]' : 'text-slate-400'}`}>
-                {gasData.ch4_ppm != null ? '< 1.0 ppm' : '-'}
+              <span>Status Pembacaan:</span>
+              <span className="font-semibold text-slate-700">
+                {gasData.ch4_ppm != null ? `${gasData.ch4_ppm.toFixed(2)} ppm` : 'Nilai 0'}
               </span>
             </div>
           </div>
@@ -657,29 +677,25 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
               <div className="flex items-center space-x-1.5">
                 <Activity className="w-4 h-4 text-emerald-600" />
                 <span className="text-xs text-[#0F172A] font-bold uppercase tracking-wider">
-                  MQ-135 (Kualitas)
+                  MQ-135 (Gas Volatil)
                 </span>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                gasData.aqi_ppm != null ? 'text-[#166534] bg-[#DCFCE7] border-[#BBF7D0]' : 'text-slate-500 bg-slate-100 border-slate-200'
-              }`}>
-                {gasData.aqi_ppm != null ? 'AQI / VOC' : 'Belum Ada Data'}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-600 bg-slate-100 border-slate-200">
+                VOC / Amonia
               </span>
             </div>
 
             <div className="flex items-baseline space-x-1.5 pt-1">
               <span className="text-2xl font-black text-[#0F172A]">
-                {gasData.aqi_ppm != null ? gasData.aqi_ppm : '-'}
+                {gasData.aqi_ppm != null ? gasData.aqi_ppm : 0}
               </span>
-              {gasData.aqi_ppm != null && (
-                <span className="text-xs font-mono text-[#64748B]">AQI</span>
-              )}
+              <span className="text-xs font-mono text-[#64748B]">AQI</span>
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-              <span>Ambang Segar:</span>
-              <span className={`font-semibold ${gasData.aqi_ppm != null ? 'text-[#166534]' : 'text-slate-400'}`}>
-                {gasData.aqi_ppm != null ? '< 50 AQI' : '-'}
+              <span>Status Pembacaan:</span>
+              <span className="font-semibold text-slate-700">
+                {gasData.aqi_ppm != null ? `${gasData.aqi_ppm} AQI` : 'Nilai 0'}
               </span>
             </div>
           </div>
