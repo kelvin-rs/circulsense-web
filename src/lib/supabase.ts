@@ -49,36 +49,46 @@ export async function fetchScanRecords(): Promise<ScanRecord[]> {
       const { data: dataIdn, error: errIdn } = await queryIdn;
 
       if (!errIdn && dataIdn) {
-        const mapped: ScanRecord[] = dataIdn.map((row: any) => ({
-          id: row.id,
-          created_at: row.dibuat_pada || row.created_at,
-          item_name: row.nama_bahan || row.item_name,
-          category: (row.kategori_bahan || row.category || 'Sayur') as 'Sayur' | 'Buah',
-          freshness_score: row.skor_kesegaran ?? row.freshness_score ?? 3,
-          status: row.status_kesegaran || row.status || 'Layu',
-          gas_ch4_ppm: Number(row.gas_ch4_ppm ?? row.gas_metana_ch4_ppm ?? 0),
-          gas_aqi_ppm: Number(row.gas_aqi_ppm ?? row.gas_kualitas_aqi_ppm ?? 0),
-          visual_condition: row.kondisi_visual || row.visual_condition || '',
-          action_taken: row.tindakan_diambil || row.action_taken || '',
-          recommendation_title: row.judul_rekomendasi || row.recommendation_title || '',
-          saved_weight_kg: Number(row.estimasi_berat_kg ?? row.saved_weight_kg ?? 5.0),
-          prevented_ch4_g: Number(row.emisi_ch4_tercegah_g ?? row.prevented_ch4_g ?? 0),
-          prevented_co2e_g: Number(row.emisi_co2e_tercegah_g ?? row.prevented_co2e_g ?? 0),
-          financial_savings_idr: Number(row.penghematan_rupiah ?? row.financial_savings_idr ?? 0),
-          image_url: row.foto_sampel_url || row.image_url || '',
-          temperature: row.suhu_lingkungan_c ?? row.temperature,
-          humidity: row.kelembapan_relatif_rh ?? row.humidity,
-          color_hex: row.spektrum_warna_hex ?? row.color_hex,
-          color_name: row.spektrum_nama_warna ?? row.color_name,
-          // Shelf-Life & Merchant Inventory Mapping
-          shelf_life_hours: Number(row.sisa_umur_simpan_jam ?? row.shelf_life_hours ?? 48),
-          shelf_life_days: Number(row.sisa_hari_simpan ?? row.shelf_life_days ?? 2.0),
-          ripeness_stage: row.fase_kematangan || row.ripeness_stage || 'Fullripe (Matang Optimal)',
-          disease_detected: row.deteksi_penyakit || row.disease_detected || 'Normal (Bebas Jamur)',
-          inventory_action: row.tindakan_stok_pedagang || row.inventory_action || 'Pajang di Etalase Depan Segera',
-          pricing_strategy: row.rekomendasi_harga || row.pricing_strategy || 'Harga Normal',
-          color_consistency: row.status_validasi_kroma || row.color_consistency || 'Sangat Konsisten'
-        }));
+        const mapped: ScanRecord[] = dataIdn.map((row: any) => {
+          let meta: any = null;
+          let cleanVisual = row.kondisi_visual || row.visual_condition || '';
+          if (typeof cleanVisual === 'string' && cleanVisual.trim().startsWith('{')) {
+            try {
+              meta = JSON.parse(cleanVisual);
+              cleanVisual = (meta.defects && meta.defects.length > 0) ? meta.defects.join(', ') : (meta.status || cleanVisual);
+            } catch {}
+          }
+          return {
+            id: row.id,
+            created_at: row.dibuat_pada || row.created_at,
+            item_name: row.nama_bahan || row.item_name,
+            category: (row.kategori_bahan || row.category || 'Sayur') as 'Sayur' | 'Buah',
+            freshness_score: row.skor_kesegaran ?? meta?.freshness_score ?? row.freshness_score ?? 3,
+            status: row.status_kesegaran || meta?.status || row.status || 'Layu',
+            gas_ch4_ppm: Number(row.gas_ch4_ppm ?? row.gas_metana_ch4_ppm ?? 0),
+            gas_aqi_ppm: Number(row.gas_aqi_ppm ?? row.gas_kualitas_aqi_ppm ?? 0),
+            visual_condition: cleanVisual,
+            action_taken: row.tindakan_diambil || row.action_taken || '',
+            recommendation_title: row.judul_rekomendasi || row.recommendation_title || '',
+            saved_weight_kg: Number(row.estimasi_berat_kg ?? row.saved_weight_kg ?? 5.0),
+            prevented_ch4_g: Number(row.emisi_ch4_tercegah_g ?? row.prevented_ch4_g ?? 0),
+            prevented_co2e_g: Number(row.emisi_co2e_tercegah_g ?? row.prevented_co2e_g ?? 0),
+            financial_savings_idr: Number(row.penghematan_rupiah ?? row.financial_savings_idr ?? 0),
+            image_url: row.foto_sampel_url || row.image_url || '',
+            temperature: row.suhu_lingkungan_c ?? row.temperature,
+            humidity: row.kelembapan_relatif_rh ?? row.humidity,
+            color_hex: row.spektrum_warna_hex ?? row.color_hex,
+            color_name: row.spektrum_nama_warna ?? row.color_name,
+            // Shelf-Life & Merchant Inventory Mapping
+            shelf_life_hours: Number(row.sisa_umur_simpan_jam ?? meta?.hours_to_spoil ?? row.shelf_life_hours ?? 48),
+            shelf_life_days: Number(row.sisa_hari_simpan ?? meta?.days_to_spoil ?? row.shelf_life_days ?? 2.0),
+            ripeness_stage: row.fase_kematangan || meta?.ripeness_stage || row.ripeness_stage || 'Fullripe (Matang Optimal)',
+            disease_detected: row.deteksi_penyakit || meta?.disease_detected || row.disease_detected || 'Normal (Bebas Jamur)',
+            inventory_action: row.tindakan_stok_pedagang || meta?.inventory_action || row.inventory_action || 'Pajang di Etalase Depan Segera',
+            pricing_strategy: row.rekomendasi_harga || meta?.pricing_strategy || row.pricing_strategy || 'Harga Normal',
+            color_consistency: row.status_validasi_kroma || row.color_consistency || 'Sangat Konsisten'
+          };
+        });
 
         if (typeof window !== 'undefined') {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
@@ -300,13 +310,29 @@ export function calculateImpactSummary(records: ScanRecord[], monthName: string 
   };
 }
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export interface SubmitScanTaskResponse {
+  id?: string;
+  error?: string;
+}
+
 /**
  * Buat antrean scan baru ke Supabase agar ditangkap dan diproses otomatis
  * oleh Worker Model AI Python lokal (run_demo.bat).
  */
-export async function submitScanTask(visual: VisualData, gas: GasData): Promise<string | null> {
-  if (!supabase) return null;
-  const recordId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'scan-' + Date.now();
+export async function submitScanTask(visual: VisualData, gas: GasData): Promise<SubmitScanTaskResponse> {
+  if (!supabase) return { error: 'Koneksi database Supabase belum terinisialisasi' };
+  const recordId = generateUUID();
   const nowIso = new Date().toISOString();
 
   let currentUserId: string | null = null;
@@ -345,17 +371,17 @@ export async function submitScanTask(visual: VisualData, gas: GasData): Promise<
 
   const { error } = await supabase.from('riwayat_pemindaian').insert([pendingPayload]);
   if (error) {
-    console.warn('[Supabase] Gagal membuat antrean scan:', error);
-    return null;
+    console.error('[Supabase] Gagal membuat antrean scan:', error);
+    return { error: error.message };
   }
-  return recordId;
+  return { id: recordId };
 }
 
 /**
- * Polling hasil inferensi dari Worker Python lokal (maksimal 5 detik).
+ * Polling hasil inferensi dari Worker Python lokal (maksimal 6.5 detik).
  * Jika worker menyelesaikan analisis, record akan memiliki status_kesegaran aktual.
  */
-export async function pollScanResult(recordId: string, maxWaitMs = 5000): Promise<any | null> {
+export async function pollScanResult(recordId: string, maxWaitMs = 10000): Promise<any | null> {
   if (!supabase) return null;
   const startTime = Date.now();
 
@@ -368,11 +394,16 @@ export async function pollScanResult(recordId: string, maxWaitMs = 5000): Promis
         .maybeSingle();
 
       if (!error && data && data.status_kesegaran !== 'Menunggu Model ML...') {
+        if (data.kondisi_visual && data.kondisi_visual.startsWith('{')) {
+          try {
+            data._meta = JSON.parse(data.kondisi_visual);
+          } catch {}
+        }
         return data;
       }
     } catch {}
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   return null;

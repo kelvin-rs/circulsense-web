@@ -65,8 +65,8 @@ export default function DaftarPage() {
     } else {
       setSuccessMsg('Pendaftaran berhasil! Mengalihkan ke Beranda...');
       setTimeout(() => {
-        router.push('/beranda');
-      }, 900);
+        window.location.href = '/beranda';
+      }, 500);
     }
   };
 

@@ -12,6 +12,7 @@ import { runSensorFusion } from '@/lib/sensor-fusion';
 import { saveScanRecord, submitScanTask, pollScanResult, supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { GasData, VisualData, FusionResult, UpcyclingRecommendation } from '@/types/circulsense';
+import { AlertCircle, CheckCircle, Info, X } from 'lucide-react';
 
 export default function BerandaPage() {
   const { user } = useAuth();
@@ -24,8 +25,13 @@ export default function BerandaPage() {
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
   const [activeRecipeModal, setActiveRecipeModal] = useState<UpcyclingRecommendation | null>(null);
+  const [syncAlert, setSyncAlert] = useState<{
+    type: 'success' | 'warning' | 'error' | 'info';
+    title: string;
+    message: string;
+  } | null>(null);
 
-  const pendingScanIdRef = React.useRef<string | null>(null);
+  const pendingScanPromiseRef = React.useRef<Promise<string | null> | null>(null);
 
   const handleTriggerCamera = () => {
     setSubView('pindai');
@@ -39,7 +45,7 @@ export default function BerandaPage() {
 
       try {
         const { data, error } = await supabase
-          .from('telemetri_sensor')
+          .from('log_telemetri_iot')
           .select('*')
           .eq('id_pengguna', user.id)
           .order('waktu_perekaman', { ascending: false })
@@ -97,20 +103,43 @@ export default function BerandaPage() {
   const handleStartAnalysis = (visualData: VisualData) => {
     setActiveVisualData(visualData);
     setSubView('proses');
+    setSyncAlert(null);
 
     // Buat antrean ke Supabase agar ditangkap otomatis oleh run_demo.bat di laptop
-    submitScanTask(visualData, gasData).then((id) => {
-      pendingScanIdRef.current = id;
-    });
+    pendingScanPromiseRef.current = submitScanTask(visualData, gasData)
+      .then((res) => {
+        if (res.error) {
+          console.warn('[Sync Error]', res.error);
+          setSyncAlert({
+            type: 'error',
+            title: 'Kendala Koneksi Database',
+            message: `Gagal mengirim antrean pemindaian ke Supabase: ${res.error}. Sistem tetap melanjutkan dalam simulasi lokal.`
+          });
+          return null;
+        }
+        return res.id || null;
+      })
+      .catch((err) => {
+        console.warn('[Sync Exception]', err);
+        return null;
+      });
   };
 
   const handleAnalysisCompleted = async () => {
     if (!activeVisualData) return;
 
     let mlResultFromSupabase: any = null;
-    if (pendingScanIdRef.current) {
-      // Tunggu hingga Worker Python selesai mengupdate baris ini di Supabase (maks 4 detik)
-      mlResultFromSupabase = await pollScanResult(pendingScanIdRef.current, 4000);
+    let scanId: string | null = null;
+
+    if (pendingScanPromiseRef.current) {
+      try {
+        scanId = await pendingScanPromiseRef.current;
+      } catch {}
+    }
+
+    if (scanId) {
+      // Tunggu hingga Worker Python selesai mengupdate baris ini di Supabase (maks 10 detik)
+      mlResultFromSupabase = await pollScanResult(scanId, 10000);
     }
 
     // Jalankan fusi sensor lokal sebagai basis
@@ -123,6 +152,47 @@ export default function BerandaPage() {
       result.status = mlResultFromSupabase.status_kesegaran ?? result.status;
       result.status_badge_color = mlResultFromSupabase.warna_badge_status ?? result.status_badge_color;
       result.status_summary = mlResultFromSupabase.ringkasan_analisis ?? result.status_summary;
+
+      // Baca metadata aman yang dienkapsulasi dari kondisi_visual
+      const meta = mlResultFromSupabase._meta;
+      if (meta) {
+        if (meta.disease) {
+          if (meta.disease === 'Gray_Mold') result.shelf_life.disease_detected = 'Risiko Gray Mold (Botrytis)';
+          else if (meta.disease === 'Black_Spot') result.shelf_life.disease_detected = 'Black Spot';
+          else if (meta.disease === 'Powdery_Mildew') result.shelf_life.disease_detected = 'Powdery Mildew';
+          else result.shelf_life.disease_detected = 'Normal (Bebas Jamur)';
+        }
+        if (meta.ripeness) {
+          if (meta.ripeness === 'Unripe') result.shelf_life.ripeness_stage = 'Unripe (Mentah)';
+          else if (meta.ripeness === 'Semiripe') result.shelf_life.ripeness_stage = 'Semiripe (Setengah Matang)';
+          else if (meta.ripeness === 'Overripe') result.shelf_life.ripeness_stage = 'Overripe (Lewat Matang)';
+          else result.shelf_life.ripeness_stage = 'Fullripe (Matang Optimal)';
+        }
+        if (meta.hours_to_spoil != null) {
+          result.shelf_life.hours_remaining = Number(meta.hours_to_spoil);
+          result.shelf_life.days_remaining = Number(meta.days_to_spoil);
+        }
+        if (meta.action_code === 'OLAH_SEGERA') {
+          result.shelf_life.inventory_action = 'Pilah ke Komposter Organik / Bio-fermentasi';
+          result.shelf_life.pricing_strategy = 'Bahan Baku Olahan';
+        } else if (meta.action_code === 'DISCOUNT_CEPAT') {
+          result.shelf_life.inventory_action = 'Diskon / Jual Cepat Hari Ini';
+          result.shelf_life.pricing_strategy = 'Diskon 30-50%';
+        }
+      }
+
+      // Jika terdeteksi Busuk dari model AI
+      if (result.status === 'Busuk' || result.freshness_score <= 1) {
+        result.status = 'Busuk';
+        result.freshness_score = 1;
+        result.status_badge_color = 'red';
+        result.shelf_life.hours_remaining = 0;
+        result.shelf_life.days_remaining = 0;
+        result.shelf_life.disease_detected = 'Risiko Gray Mold (Botrytis)';
+        result.shelf_life.inventory_action = 'Pilah ke Komposter Organik / Bio-fermentasi';
+        result.shelf_life.pricing_strategy = 'Bahan Baku Olahan';
+      }
+
       if (mlResultFromSupabase.sisa_umur_simpan_jam != null) {
         result.shelf_life.hours_remaining = Number(mlResultFromSupabase.sisa_umur_simpan_jam);
         result.shelf_life.days_remaining = Number(mlResultFromSupabase.sisa_hari_simpan);
@@ -139,9 +209,20 @@ export default function BerandaPage() {
       if (mlResultFromSupabase.rekomendasi_harga) {
         result.shelf_life.pricing_strategy = mlResultFromSupabase.rekomendasi_harga;
       }
+
+      setSyncAlert({
+        type: 'success',
+        title: 'Hasil Terverifikasi AI',
+        message: 'Hasil analisis YOLOv8 & Model Fusi berhasil diproses secara nyata oleh Worker Laptop Anda!'
+      });
     } else {
       // Fallback jika laptop sedang offline/tidak menjalankan run_demo.bat
       await saveScanRecord(result);
+      setSyncAlert({
+        type: 'warning',
+        title: 'Mode Estimasi Heuristik (Worker Offline)',
+        message: 'Worker Python di terminal laptop tidak merespons dalam 6.5 detik. Menampilkan estimasi fusi sensor lokal.'
+      });
     }
 
     setCurrentFusionResult(result);
@@ -158,6 +239,39 @@ export default function BerandaPage() {
       )}
 
       <div className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-6">
+        {syncAlert && (
+          <div
+            className={`mb-5 p-4 rounded-2xl border flex items-start justify-between gap-3 text-xs sm:text-sm animate-in fade-in duration-200 shadow-xs ${
+              syncAlert.type === 'success'
+                ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
+                : syncAlert.type === 'warning'
+                ? 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]'
+                : syncAlert.type === 'error'
+                ? 'bg-[#FEE2E2] border-[#FECACA] text-[#991B1B]'
+                : 'bg-blue-50 border-blue-200 text-blue-800'
+            }`}
+          >
+            <div className="flex items-start space-x-2.5">
+              {syncAlert.type === 'success' && <CheckCircle className="w-5 h-5 shrink-0 text-[#16A34A] mt-0.5" />}
+              {syncAlert.type === 'warning' && <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />}
+              {syncAlert.type === 'error' && <AlertCircle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />}
+              {syncAlert.type === 'info' && <Info className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" />}
+              <div>
+                <div className="font-bold">{syncAlert.title}</div>
+                <p className="mt-0.5 opacity-90">{syncAlert.message}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSyncAlert(null)}
+              className="p-1 rounded-lg hover:bg-black/5 text-current opacity-70 hover:opacity-100 cursor-pointer"
+              title="Tutup Notifikasi"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {subView === 'pindai' && (
           <PindaiBahan
             gasData={gasData}

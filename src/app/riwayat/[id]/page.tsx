@@ -119,6 +119,7 @@ export default function RiwayatDetailPage() {
 
   const isFresh = record.freshness_score >= 4;
   const isDecaying = record.freshness_score === 3;
+  const isRotten = record.status === 'Busuk' || record.freshness_score <= 1 || (record.disease_detected?.toLowerCase().includes('gray') ?? false);
 
   return (
     <main className="min-h-screen bg-white text-[#1E293B] flex flex-col selection:bg-[#16A34A] selection:text-white">
@@ -206,27 +207,61 @@ export default function RiwayatDetailPage() {
           </div>
 
           {/* Prediksi Umur Simpan & Keputusan Inventaris Pedagang */}
-          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 transition ${
+              isRotten
+                ? 'bg-red-50/80 border-red-200/90 text-red-900'
+                : 'bg-emerald-50/70 border-emerald-200/80 text-emerald-900'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span
+                className={`text-xs font-extrabold uppercase tracking-wider ${
+                  isRotten ? 'text-red-800' : 'text-emerald-800'
+                }`}
+              >
                 Prediksi Umur Simpan & Aksi Stok Pedagang
               </span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                Sisa ~{record.shelf_life_hours ?? 48} Jam ({record.shelf_life_days ?? 2.0} Hari)
+              <span
+                className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                  isRotten
+                    ? 'bg-red-100 text-red-800 border-red-200'
+                    : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                }`}
+              >
+                {isRotten
+                  ? 'Sisa 0 Jam (Segera Dipilah)'
+                  : `Sisa ~${record.shelf_life_hours ?? 48} Jam (${record.shelf_life_days ?? 2.0} Hari)`}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-slate-500 font-medium block">Tindakan Inventaris Disarankan:</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
+                <span className="text-[10px] text-slate-500 font-medium block">Tindakan Inventaris:</span>
                 <strong className="text-slate-900 font-bold text-xs mt-0.5 block">
-                  {record.inventory_action || 'Pajang di Etalase Depan Segera'}
+                  {record.inventory_action || (isRotten ? 'Pilah ke Komposter Organik' : 'Pajang di Etalase Depan Segera')}
                 </strong>
               </div>
-              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+
+              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
+                <span className="text-[10px] text-slate-500 font-medium block">Deteksi Patogen & Cacat:</span>
+                <div className="flex items-center space-x-1.5 mt-0.5">
+                  {record.disease_detected && !record.disease_detected.toLowerCase().includes('normal') && !record.disease_detected.toLowerCase().includes('bebas') ? (
+                    <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 truncate">
+                      ⚠ {record.disease_detected}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 truncate">
+                      ✓ {record.disease_detected || 'Normal (Bebas Jamur)'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
                 <span className="text-[10px] text-slate-500 font-medium block">Strategi Harga & Kematangan:</span>
-                <strong className="text-emerald-700 font-bold text-xs mt-0.5 block">
-                  {record.pricing_strategy || 'Harga Normal'} • {record.ripeness_stage || 'Fullripe'}
+                <strong className="text-slate-800 font-bold text-xs mt-0.5 block truncate">
+                  {record.pricing_strategy || (isRotten ? 'Bahan Olahan' : 'Harga Normal')} • {record.ripeness_stage || 'Fullripe'}
                 </strong>
               </div>
             </div>

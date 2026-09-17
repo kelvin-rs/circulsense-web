@@ -104,15 +104,46 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     }
   };
 
-  const handleTakeSnapshot = () => {
+  const compressImage = (dataUrl: string, maxDim = 800, quality = 0.75): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
+  const handleTakeSnapshot = async () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth || 1280;
-      canvas.height = videoRef.current.videoHeight || 720;
+      canvas.width = Math.min(800, videoRef.current.videoWidth || 800);
+      canvas.height = Math.min(800, videoRef.current.videoHeight || 600);
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
         setCapturedImage(dataUrl);
         setDetectedConfidence(0.96);
         setUseLiveCamera(false);
@@ -125,9 +156,11 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         if (event.target?.result) {
-          setCapturedImage(event.target.result as string);
+          const rawUrl = event.target.result as string;
+          const compressed = await compressImage(rawUrl, 800, 0.75);
+          setCapturedImage(compressed);
           setDetectedConfidence(0.95);
           setUseLiveCamera(false);
           onCameraStateChange?.(false);

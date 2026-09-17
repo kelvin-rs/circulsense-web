@@ -115,31 +115,31 @@ export default function RiwayatPage() {
   });
 
   const getScoreBadge = (score: number, statusText: string) => {
-    if (score >= 4) {
+    if (statusText === 'Busuk' || score <= 1) {
       return {
-        scoreColor: 'text-[#16A34A]',
-        badgeBg: 'bg-[#DCFCE7] text-[#166534]',
-        label: statusText || 'Segar'
+        scoreColor: 'text-red-600',
+        badgeBg: 'bg-red-100 text-red-800',
+        label: 'Busuk'
       };
     }
-    if (score === 3) {
-      return {
-        scoreColor: 'text-amber-600',
-        badgeBg: 'bg-amber-100 text-amber-800',
-        label: statusText || 'Layu'
-      };
-    }
-    if (score === 2) {
+    if (statusText === 'Terlalu Matang' || score === 2) {
       return {
         scoreColor: 'text-orange-600',
         badgeBg: 'bg-orange-100 text-orange-800',
         label: statusText || 'Terlalu Matang'
       };
     }
+    if (statusText === 'Layu' || score === 3) {
+      return {
+        scoreColor: 'text-amber-600',
+        badgeBg: 'bg-amber-100 text-amber-800',
+        label: statusText || 'Layu'
+      };
+    }
     return {
-      scoreColor: 'text-red-600',
-      badgeBg: 'bg-red-100 text-red-800',
-      label: statusText || 'Busuk'
+      scoreColor: 'text-[#16A34A]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534]',
+      label: statusText || 'Segar'
     };
   };
 
@@ -377,8 +377,21 @@ export default function RiwayatPage() {
                           {formatDate(rec.created_at)}
                         </p>
                         {rec.shelf_life_hours != null && (
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                            Sisa ~{rec.shelf_life_hours} Jam
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                              rec.status === 'Busuk' || rec.freshness_score <= 1
+                                ? 'text-red-800 bg-red-50 border-red-200'
+                                : 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                            }`}
+                          >
+                            {rec.status === 'Busuk' || rec.freshness_score <= 1
+                              ? 'Sisa 0 Jam (Pilah)'
+                              : `Sisa ~${rec.shelf_life_hours} Jam`}
+                          </span>
+                        )}
+                        {rec.disease_detected && !rec.disease_detected.toLowerCase().includes('normal') && !rec.disease_detected.toLowerCase().includes('bebas') && (
+                          <span className="text-[10px] font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">
+                            ⚠ {rec.disease_detected}
                           </span>
                         )}
                       </div>

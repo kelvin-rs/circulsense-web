@@ -99,10 +99,15 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
             <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
               Sistem Peringatan Dini Pedagang
             </span>
-            {result.is_live_ml && (
+            {result.is_live_ml ? (
               <span className="inline-flex items-center space-x-1 text-xs font-extrabold uppercase tracking-wider text-violet-700 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-200 shadow-xs">
                 <Zap className="w-3.5 h-3.5 text-violet-600 fill-violet-600" />
-                <span>Model ML Lokal Aktif (YOLO + Early Fusion)</span>
+                <span>Model ML Terverifikasi (YOLOv8 + Early Fusion)</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center space-x-1 text-xs font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 shadow-xs" title="Worker AI di terminal lokal belum terdeteksi. Hasil ditampilkan berdasarkan estimasi sensor lokal.">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                <span>Estimasi Fusi Heuristik (Worker Offline)</span>
               </span>
             )}
             <span className="text-xs text-slate-400">•</span>
@@ -238,24 +243,44 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
               </div>
 
               {/* Disease Detection */}
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+              <div
+                className={`p-3.5 rounded-2xl border ${
+                  shelfLife.disease_detected.toLowerCase().includes('gray') ||
+                  shelfLife.disease_detected.toLowerCase().includes('mold') ||
+                  shelfLife.disease_detected.toLowerCase().includes('busuk')
+                    ? 'bg-red-50/70 border-red-200'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
                 <span className="text-[11px] font-bold text-slate-500 block uppercase">
                   Deteksi Penyakit / Cacat:
                 </span>
                 <div className="flex items-center space-x-1.5 mt-0.5">
                   {shelfLife.disease_detected.includes('Normal') ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : shelfLife.disease_detected.toLowerCase().includes('gray') ||
+                    shelfLife.disease_detected.toLowerCase().includes('mold') ||
+                    shelfLife.disease_detected.toLowerCase().includes('busuk') ? (
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                   ) : (
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   )}
-                  <strong className="text-sm font-extrabold text-[#0F172A] truncate">
+                  <strong
+                    className={`text-sm font-extrabold truncate ${
+                      shelfLife.disease_detected.toLowerCase().includes('gray') ||
+                      shelfLife.disease_detected.toLowerCase().includes('mold') ||
+                      shelfLife.disease_detected.toLowerCase().includes('busuk')
+                        ? 'text-red-700'
+                        : 'text-[#0F172A]'
+                    }`}
+                  >
                     {shelfLife.disease_detected}
                   </strong>
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   {shelfLife.disease_detected.includes('Normal')
                     ? 'Bebas tanda kapang Botrytis'
-                    : 'Risiko dekomposisi jamur aktif'}
+                    : 'Risiko dekomposisi jamur aktif terdeteksi'}
                 </span>
               </div>
             </div>

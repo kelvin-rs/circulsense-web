@@ -44,13 +44,16 @@ function formatAuthError(errMessage: string): string {
 
 function setAuthCookie(token: string) {
   if (typeof document !== 'undefined') {
-    document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+    const val = encodeURIComponent(token);
+    document.cookie = `${AUTH_COOKIE_NAME}=${val}; path=/; max-age=604800; SameSite=Lax`;
+    document.cookie = `sb-access-token=${val}; path=/; max-age=604800; SameSite=Lax`;
   }
 }
 
 function removeAuthCookie() {
   if (typeof document !== 'undefined') {
     document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+    document.cookie = `sb-access-token=; path=/; max-age=0; SameSite=Lax`;
   }
 }
 
@@ -181,7 +184,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.session) {
         setUser(data.user);
         setAuthCookie(data.session.access_token);
-        if (data.user) await loadUserProfile(data.user);
+        if (data.user) {
+          loadUserProfile(data.user).catch((e) => console.warn('Profile load deferred:', e));
+        }
       }
 
       return {};
@@ -219,7 +224,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.session) {
         setUser(data.user);
         setAuthCookie(data.session.access_token);
-        if (data.user) await loadUserProfile(data.user);
+        if (data.user) {
+          loadUserProfile(data.user).catch((e) => console.warn('Profile load deferred:', e));
+        }
       } else if (data.user) {
         // Coba login otomatis jika session belum langsung terlampir
         const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
@@ -229,7 +236,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!signInErr && signInData.session) {
           setUser(signInData.user);
           setAuthCookie(signInData.session.access_token);
-          if (signInData.user) await loadUserProfile(signInData.user);
+          if (signInData.user) {
+            loadUserProfile(signInData.user).catch((e) => console.warn('Profile load deferred:', e));
+          }
         }
       }
 

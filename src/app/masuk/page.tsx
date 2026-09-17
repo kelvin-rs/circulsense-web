@@ -13,13 +13,21 @@ function LoginForm() {
   const emailParam = searchParams.get('email') || '';
   const isVerified = searchParams.get('verified') === 'true';
 
-  const { signIn } = useAuth();
+  const { user, signIn, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState(emailParam);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [verifiedBanner, setVerifiedBanner] = useState(isVerified);
+
+  // Jika sudah terdeteksi login, langsung alihkan ke beranda (mencegah stuck)
+  useEffect(() => {
+    if (user && !authLoading) {
+      window.location.href = redirectUrl;
+    }
+  }, [user, authLoading, redirectUrl]);
 
   useEffect(() => {
     if (emailParam) {
@@ -36,13 +44,18 @@ function LoginForm() {
 
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     const res = await signIn(email, password);
     if (res.error) {
       setErrorMsg(res.error);
       setLoading(false);
     } else {
-      router.push(redirectUrl);
+      setSuccessMsg('Masuk berhasil! Mengalihkan ke Beranda...');
+      // Menggunakan navigasi browser penuh agar cookie autentikasi terkirim ke middleware & server components
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+      }, 350);
     }
   };
 
@@ -61,6 +74,13 @@ function LoginForm() {
         <div className="p-3.5 bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] text-xs font-semibold rounded-xl flex items-center space-x-2 animate-in fade-in duration-150">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Email Anda terkonfirmasi! Silakan masukkan kata sandi untuk masuk.</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-3.5 bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] text-xs font-semibold rounded-xl flex items-center space-x-2 animate-in fade-in duration-150">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{successMsg}</span>
         </div>
       )}
 
