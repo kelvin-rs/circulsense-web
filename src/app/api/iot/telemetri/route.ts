@@ -97,28 +97,28 @@ export async function POST(request: NextRequest) {
       id_perangkat: targetDeviceId || null,
       
       // MQ-4
-      mq4_metana_ppm: Number(ch4_ppm ?? 0.0),
-      mq4_tegangan_raw: Number(mq4_tegangan_raw ?? raw_mq4 ?? 0),
+      mq4_metana_ppm: Number(ch4_ppm ?? body.ch4 ?? 0.0),
+      mq4_tegangan_raw: Number(mq4_tegangan_raw ?? raw_mq4 ?? body.mq4_raw ?? 0),
       mq4_rs_ro_ratio: Number(mq4_rs_ro_ratio ?? 1.0),
 
       // MQ-135
-      mq135_udara_ppm: Number(aqi_ppm ?? 0.0),
-      mq135_tegangan_raw: Number(mq135_tegangan_raw ?? raw_mq135 ?? 0),
+      mq135_udara_ppm: Number(aqi_ppm ?? body.aqi ?? 0.0),
+      mq135_tegangan_raw: Number(mq135_tegangan_raw ?? raw_mq135 ?? body.mq135_raw ?? 0),
       mq135_rs_ro_ratio: Number(mq135_rs_ro_ratio ?? 1.0),
 
       // DHT22
-      dht22_suhu_celsius: Number(dht22_suhu_celsius ?? suhu ?? 26.5),
-      dht22_kelembapan_persen: Number(dht22_kelembapan_persen ?? kelembapan ?? 65.0),
+      dht22_suhu_celsius: Number(dht22_suhu_celsius ?? suhu ?? body.temperature ?? body.temp ?? 26.5),
+      dht22_kelembapan_persen: Number(dht22_kelembapan_persen ?? kelembapan ?? body.humidity ?? body.hum ?? 65.0),
 
       // TCS34725
-      tcs_kanal_merah: Number(warna_r ?? 0),
-      tcs_kanal_hijau: Number(warna_g ?? 0),
-      tcs_kanal_biru: Number(warna_b ?? 0),
-      tcs_kanal_clear: Number(warna_c ?? 0),
-      tcs_intensitas_lux: Number(warna_lux ?? 0),
-      tcs_suhu_warna_kelvin: Number(suhu_warna_kelvin ?? 0),
-      tcs_kode_hex: kode_hex || '#2D7A38',
-      tcs_nama_warna: nama_warna || 'Terdeteksi',
+      tcs_kanal_merah: Number(warna_r ?? body.color_r ?? body.r ?? 0),
+      tcs_kanal_hijau: Number(warna_g ?? body.color_g ?? body.g ?? 0),
+      tcs_kanal_biru: Number(warna_b ?? body.color_b ?? body.b ?? 0),
+      tcs_kanal_clear: Number(warna_c ?? body.color_c ?? body.c ?? 0),
+      tcs_intensitas_lux: Number(warna_lux ?? body.color_lux ?? body.lux ?? 0),
+      tcs_suhu_warna_kelvin: Number(suhu_warna_kelvin ?? body.color_temp ?? body.cct ?? 0),
+      tcs_kode_hex: kode_hex || body.color_hex || body.hex || '#2D7A38',
+      tcs_nama_warna: nama_warna || body.color_name || 'Terdeteksi',
 
       waktu_perekaman: new Date().toISOString()
     };

@@ -129,6 +129,7 @@ class MQTTService {
               color_name: colorName,
               battery: Number(data.battery ?? 100),
               is_connected: true,
+              has_data: true,
               timestamp: new Date().toISOString()
             };
             this.notifyListeners(this.currentGasData);
