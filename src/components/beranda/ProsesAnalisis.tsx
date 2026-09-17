@@ -32,7 +32,7 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
   ];
 
   const [progress, setProgress] = useState<number>(10);
-  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const currentStepIndex = Math.min(Math.floor((progress / 100) * STEPS.length), STEPS.length - 1);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -51,11 +51,6 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
 
     return () => clearInterval(interval);
   }, [onComplete]);
-
-  useEffect(() => {
-    const step = Math.min(Math.floor((progress / 100) * STEPS.length), STEPS.length - 1);
-    setCurrentStepIndex(step);
-  }, [progress]);
 
   const radius = 54;
   const circumference = 2 * Math.PI * radius;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/circulsense';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -24,29 +24,19 @@ function formatAuthError(errMessage: string): string {
   if (msg.includes('email not confirmed')) {
     return 'Email Anda belum dikonfirmasi. Silakan matikan opsi "Confirm email" di Dashboard Supabase agar pendaftaran bisa langsung masuk tanpa batas.';
   }
-  if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
-    return 'Alamat email atau kata sandi yang Anda masukkan salah. Silakan periksa kembali.';
+  if (msg.includes('invalid login credentials')) {
+    return 'Email atau kata sandi tidak valid. Pastikan akun sudah terdaftar.';
   }
-  if (msg.includes('user already registered') || msg.includes('already exists')) {
-    return 'Alamat email ini sudah terdaftar sebelumnya. Silakan masuk menggunakan kata sandi Anda.';
-  }
-  if (msg.includes('password should be at least')) {
-    return 'Kata sandi minimal harus terdiri dari 6 karakter.';
-  }
-  if (msg.includes('signup requires a valid password')) {
-    return 'Harap masukkan kata sandi yang valid.';
-  }
-  if (msg.includes('rate limit')) {
-    return 'Batas pengiriman Supabase tercapai. Matikan opsi "Confirm email" di Dashboard Supabase -> Authentication -> Providers -> Email agar dapat mendaftar tanpa batas rate limit.';
+  if (msg.includes('user already registered')) {
+    return 'Email ini sudah terdaftar. Silakan masuk menggunakan kata sandi Anda.';
   }
   return errMessage;
 }
 
-function setAuthCookie(token: string) {
-  if (typeof document !== 'undefined') {
-    const val = encodeURIComponent(token);
-    document.cookie = `${AUTH_COOKIE_NAME}=${val}; path=/; max-age=604800; SameSite=Lax`;
-    document.cookie = `sb-access-token=${val}; path=/; max-age=604800; SameSite=Lax`;
+function setAuthCookie(token?: string) {
+  if (typeof document !== 'undefined' && token) {
+    document.cookie = `${AUTH_COOKIE_NAME}=${token}; path=/; max-age=604800; SameSite=Lax`;
+    document.cookie = `sb-access-token=${token}; path=/; max-age=604800; SameSite=Lax`;
   }
 }
 
@@ -62,59 +52,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize and listen to Supabase Auth State
-  useEffect(() => {
-    let isMounted = true;
-
-    async function initAuth() {
-      if (supabase) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user && isMounted) {
-            setUser(session.user);
-            setAuthCookie(session.access_token);
-            await loadUserProfile(session.user);
-          } else if (isMounted) {
-            setUser(null);
-            setProfile(null);
-            removeAuthCookie();
-          }
-        } catch (e) {
-          console.warn('Auth initialization error:', e);
-        }
-      }
-      if (isMounted) setIsLoading(false);
-    }
-
-    initAuth();
-
-    if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (!isMounted) return;
-
-        if (session?.user) {
-          setUser(session.user);
-          setAuthCookie(session.access_token);
-          await loadUserProfile(session.user);
-        } else {
-          setUser(null);
-          setProfile(null);
-          removeAuthCookie();
-        }
-        setIsLoading(false);
-      });
-
-      return () => {
-        isMounted = false;
-        subscription.unsubscribe();
-      };
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
-
   // Fetch full user profile from public.pengguna (dengan auto-sync jika belum ada di database)
-  const loadUserProfile = async (authUser: SupabaseUser) => {
+  const loadUserProfile = useCallback(async (authUser: SupabaseUser) => {
     if (!supabase) return;
 
     try {
@@ -163,7 +102,56 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (e) {
       console.warn('Failed to load/sync user profile to public.pengguna:', e);
     }
-  };
+  }, []);
+
+  // Initialize and listen to Supabase Auth State
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initAuth() {
+      if (supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user && isMounted) {
+            setUser(session.user);
+            setAuthCookie(session.access_token);
+            await loadUserProfile(session.user);
+          } else if (isMounted) {
+            setUser(null);
+            setProfile(null);
+            removeAuthCookie();
+          }
+        } catch (e) {
+          console.warn('Auth initialization error:', e);
+        }
+      }
+      if (isMounted) setIsLoading(false);
+    }
+
+    initAuth();
+
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+
+        if (session?.user) {
+          setUser(session.user);
+          setAuthCookie(session.access_token);
+          await loadUserProfile(session.user);
+        } else {
+          setUser(null);
+          setProfile(null);
+          removeAuthCookie();
+        }
+        setIsLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+        subscription.unsubscribe();
+      };
+    }
+  }, [loadUserProfile]);
 
   // Sign In with Supabase
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {

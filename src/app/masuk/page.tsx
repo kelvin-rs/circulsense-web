@@ -2,16 +2,15 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/beranda';
   const emailParam = searchParams.get('email') || '';
-  const isVerified = searchParams.get('verified') === 'true';
+  const verifiedBanner = searchParams.get('verified') === 'true';
 
   const { user, signIn, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState(emailParam);
@@ -20,7 +19,6 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [verifiedBanner, setVerifiedBanner] = useState(isVerified);
 
   // Jika sudah terdeteksi login, langsung alihkan ke beranda (mencegah stuck)
   useEffect(() => {
@@ -28,12 +26,6 @@ function LoginForm() {
       window.location.href = redirectUrl;
     }
   }, [user, authLoading, redirectUrl]);
-
-  useEffect(() => {
-    if (emailParam) {
-      setEmail(emailParam);
-    }
-  }, [emailParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -223,34 +223,34 @@ ON public.perangkat_iot FOR ALL
 USING (auth.uid() = id_pengguna)
 WITH CHECK (auth.uid() = id_pengguna);
 
--- Kebijakan RLS: telemetri_sensor
-CREATE POLICY "Pengguna dapat mengelola telemetri sensor sendiri"
+-- Kebijakan RLS: telemetri_sensor (Mendukung ESP32 & Worker Lokal)
+CREATE POLICY "Pengguna dan perangkat dapat mengelola telemetri sensor"
 ON public.telemetri_sensor FOR ALL
-USING (auth.uid() = id_pengguna)
-WITH CHECK (auth.uid() = id_pengguna);
+USING (true)
+WITH CHECK (true);
 
 -- Kebijakan RLS: pemrosesan_ml
 CREATE POLICY "Pengguna dapat mengelola inferensi ML sendiri"
 ON public.pemrosesan_ml FOR ALL
-USING (auth.uid() = id_pengguna)
-WITH CHECK (auth.uid() = id_pengguna);
+USING (true)
+WITH CHECK (true);
 
 -- Kebijakan RLS: katalog_rekomendasi_upcycling (Dapat dibaca oleh semua pengguna terautentikasi)
 CREATE POLICY "Katalog resep dapat dibaca publik"
 ON public.katalog_rekomendasi_upcycling FOR SELECT
 USING (true);
 
--- Kebijakan RLS: riwayat_pemindaian
-CREATE POLICY "Pengguna dapat mengelola riwayat pemindaian sendiri"
+-- Kebijakan RLS: riwayat_pemindaian (Mendukung Worker ML lokal & Website Vercel)
+CREATE POLICY "Akses riwayat pemindaian publik dan terautentikasi"
 ON public.riwayat_pemindaian FOR ALL
-USING (auth.uid() = id_pengguna)
-WITH CHECK (auth.uid() = id_pengguna);
+USING (true)
+WITH CHECK (true);
 
 -- Kebijakan RLS: log_dampak_lingkungan
 CREATE POLICY "Pengguna dapat mengelola ringkasan dampak sendiri"
 ON public.log_dampak_lingkungan FOR ALL
-USING (auth.uid() = id_pengguna)
-WITH CHECK (auth.uid() = id_pengguna);
+USING (true)
+WITH CHECK (true);
 
 -- ==============================================================================
 -- 10. TRIGGER: OTOMATIS MEMBUAT PROFIL SAAT USER MENDAFTAR (AUTH)

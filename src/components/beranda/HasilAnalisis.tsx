@@ -1,28 +1,18 @@
-'use client';
-
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Clock,
   AlertTriangle,
   CheckCircle2,
-  TrendingDown,
-  Sparkles,
   ArrowLeft,
   Coins,
-  Scale,
-  ShieldCheck,
   Store,
   Tag,
   Palette,
   Thermometer,
-  Wind,
-  Activity,
-  Flame,
   Leaf,
   Zap
 } from 'lucide-react';
 import { FusionResult, UpcyclingRecommendation } from '@/types/circulsense';
-import { RECIPE_CATALOG } from '@/lib/sensor-fusion';
 
 interface HasilAnalisisProps {
   result: FusionResult;
@@ -35,20 +25,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
   onBack,
   onOpenRecipeModal
 }) => {
-  const [selectedTab, setSelectedTab] = useState<'Pengolahan UMKM' | 'Resep Masakan' | 'Kompos' | 'Eco Enzyme'>(
-    result.recommendation.type as any
-  );
-
-  const itemCatalog = RECIPE_CATALOG[result.item_name] || RECIPE_CATALOG['Stroberi'];
-
-  let currentRec: UpcyclingRecommendation = result.recommendation;
-  if (selectedTab === 'Pengolahan UMKM' || selectedTab === 'Resep Masakan') {
-    currentRec = result.status === 'Segar' ? itemCatalog.segar : itemCatalog.layu;
-  } else if (selectedTab === 'Kompos') {
-    currentRec = itemCatalog.busuk;
-  } else {
-    currentRec = itemCatalog.busuk;
-  }
+  const currentRec: UpcyclingRecommendation = result.recommendation;
 
   const shelfLife = result.shelf_life;
   const hoursLeft = shelfLife.hours_remaining;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
@@ -34,6 +34,19 @@ export default function RiwayatPage() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [itemToDelete, setItemToDelete] = useState<ScanRecord | null>(null);
 
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchScanRecords();
+      setRecords(data || []);
+    } catch (e) {
+      console.error('Error fetching scan records from DB:', e);
+      setRecords([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     mqttService.init();
 
@@ -60,20 +73,7 @@ export default function RiwayatPage() {
       unsubStatus();
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const data = await fetchScanRecords();
-      setRecords(data || []);
-    } catch (e) {
-      console.error('Error fetching scan records from DB:', e);
-      setRecords([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadData]);
 
   const handleDeleteItem = async (id: string) => {
     await deleteScanRecord(id);
@@ -159,7 +159,7 @@ export default function RiwayatPage() {
 
   const formatButtonDate = (dateString: string) => {
     try {
-      const [year, month, day] = dateString.split('-');
+      const [, month, day] = dateString.split('-');
       return `${day}/${month}`;
     } catch {
       return dateString;

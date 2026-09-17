@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/Header';
@@ -11,13 +11,7 @@ import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import {
   ArrowLeft,
   Calendar,
-  Sparkles,
-  Shield,
-  Activity,
-  Leaf,
   CookingPot,
-  Thermometer,
-  Palette,
   Layers
 } from 'lucide-react';
 
@@ -29,6 +23,20 @@ export default function RiwayatDetailPage() {
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
   const [loading, setLoading] = useState(true);
+
+  const loadDetail = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const found = await fetchScanRecordById(id);
+      setRecord(found);
+    } catch (e) {
+      console.error('Error fetching detail by id:', e);
+      setRecord(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     mqttService.init();
@@ -47,20 +55,7 @@ export default function RiwayatDetailPage() {
       unsubMqtt();
       unsubStatus();
     };
-  }, [id]);
-
-  const loadDetail = async () => {
-    setLoading(true);
-    try {
-      const found = await fetchScanRecordById(id);
-      setRecord(found);
-    } catch (e) {
-      console.error('Error fetching detail by id:', e);
-      setRecord(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadDetail]);
 
   const formatDate = (isoString?: string) => {
     if (!isoString) return '-';

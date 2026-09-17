@@ -14,10 +14,10 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
   onClose,
   onApplyAction
 }) => {
-  if (!recommendation) return null;
-
   const [checkedIngredients, setCheckedIngredients] = useState<Record<number, boolean>>({});
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+
+  if (!recommendation) return null;
 
   const toggleIngredient = (idx: number) => {
     setCheckedIngredients((prev) => ({

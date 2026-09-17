@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
 import { fetchScanRecords, calculateImpactSummary } from '@/lib/supabase';
@@ -34,43 +34,10 @@ export default function LaporanPage() {
   const [availableMonths, setAvailableMonths] = useState<string[]>([currentMonthStr]);
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState<boolean>(false);
 
-  const [summary, setSummary] = useState<ImpactSummary>({
-    month_name: currentMonthStr,
-    food_saved_kg: 0,
-    food_composted_kg: 0,
-    total_scans: 0,
-    upcycle_percent: 0,
-    compost_percent: 0,
-    ch4_prevented_g: 0,
-    forest_absorbed_sqm: 0,
-    co2e_prevented_g: 0,
-    trees_absorbed: 0,
-    total_financial_saved_idr: 0
-  });
-
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
 
-  useEffect(() => {
-    mqttService.init();
-
-    const unsubMqtt = mqttService.subscribe((data) => {
-      setGasData(data);
-    });
-
-    const unsubStatus = mqttService.onStatusChange((status) => {
-      setMqttStatus(status);
-    });
-
-    loadData();
-
-    return () => {
-      unsubMqtt();
-      unsubStatus();
-    };
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const records = await fetchScanRecords();
@@ -99,11 +66,44 @@ export default function LaporanPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedMonth]);
 
-  // Recalculate summary whenever allRecords, filterType, selectedMonth, selectedYear, or selectedDate changes
   useEffect(() => {
-    if (!allRecords) return;
+    mqttService.init();
+
+    const unsubMqtt = mqttService.subscribe((data) => {
+      setGasData(data);
+    });
+
+    const unsubStatus = mqttService.onStatusChange((status) => {
+      setMqttStatus(status);
+    });
+
+    loadData();
+
+    return () => {
+      unsubMqtt();
+      unsubStatus();
+    };
+  }, [loadData]);
+
+  // Recalculate summary cleanly via useMemo without cascading render
+  const summary: ImpactSummary = useMemo(() => {
+    if (!allRecords || allRecords.length === 0) {
+      return {
+        month_name: currentMonthStr,
+        food_saved_kg: 0,
+        food_composted_kg: 0,
+        total_scans: 0,
+        upcycle_percent: 0,
+        compost_percent: 0,
+        ch4_prevented_g: 0,
+        forest_absorbed_sqm: 0,
+        co2e_prevented_g: 0,
+        trees_absorbed: 0,
+        total_financial_saved_idr: 0
+      };
+    }
 
     let filtered = allRecords;
 
@@ -127,12 +127,11 @@ export default function LaporanPage() {
       });
     }
 
-    const calculated = calculateImpactSummary(
+    return calculateImpactSummary(
       filtered,
       filterType === 'tahunan' ? `Tahun ${selectedYear}` : filterType === 'tanggal' ? selectedDate : selectedMonth
     );
-    setSummary(calculated);
-  }, [allRecords, filterType, selectedYear, selectedMonth, selectedDate]);
+  }, [allRecords, filterType, selectedYear, selectedMonth, selectedDate, currentMonthStr]);
 
   // SVG Donut Chart Geometry
   const size = 130;

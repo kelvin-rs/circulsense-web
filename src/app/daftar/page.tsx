@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, ArrowRight, Check, X } from 'lucide-react';
 
 export default function DaftarPage() {
-  const router = useRouter();
   const { signUp } = useAuth();
 
   const [fullName, setFullName] = useState('');
@@ -23,7 +21,6 @@ export default function DaftarPage() {
   const hasMinLength = password.length >= 6;
   const hasUppercase = /[A-Z]/.test(password);
   const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password);
-  const isPasswordValid = hasMinLength && hasUppercase && hasSymbol;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Camera,
   Upload,
@@ -33,7 +33,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
 }) => {
   const [useLiveCamera, setUseLiveCamera] = useState<boolean>(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const detectedFoodName = 'Stroberi';
   const batchWeightKg = 1.0;
   const [detectedConfidence, setDetectedConfidence] = useState<number>(0.96);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
@@ -42,6 +41,33 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: cameraFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.warn('Kamera fisik tidak dapat diakses:', err);
+      setUseLiveCamera(false);
+      onCameraStateChange?.(false);
+    }
+  }, [cameraFacing, onCameraStateChange]);
 
   // Auto trigger saat menu pindai ditekan atau URL mengandung ?buka_kamera=true
   useEffect(() => {
@@ -75,34 +101,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       document.body.style.overflow = '';
       onCameraStateChange?.(false);
     };
-  }, [useLiveCamera, cameraFacing]);
-
-  const startCamera = async () => {
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: cameraFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.warn('Kamera fisik tidak dapat diakses:', err);
-      setUseLiveCamera(false);
-      onCameraStateChange?.(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  };
+  }, [useLiveCamera, startCamera, stopCamera, onCameraStateChange]);
 
   const compressImage = (dataUrl: string, maxDim = 800, quality = 0.75): Promise<string> => {
     return new Promise((resolve) => {
