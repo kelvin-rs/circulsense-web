@@ -182,46 +182,21 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     if (isAnalyzing) return;
     setIsAnalyzing(true);
 
-    let isGreenStrawberry = false;
-    try {
-      const imgEl = new Image();
-      imgEl.src = capturedImage;
-      const cvs = document.createElement('canvas');
-      cvs.width = 64;
-      cvs.height = 64;
-      const c = cvs.getContext('2d');
-      if (c) {
-        c.drawImage(imgEl, 0, 0, 64, 64);
-        const p = c.getImageData(16, 16, 32, 32).data;
-        let rSum = 0, gSum = 0, bSum = 0, count = 0;
-        for (let i = 0; i < p.length; i += 4) {
-          rSum += p[i];
-          gSum += p[i + 1];
-          bSum += p[i + 2];
-          count++;
-        }
-        const avgR = rSum / (count || 1);
-        const avgG = gSum / (count || 1);
-        const avgB = bSum / (count || 1);
-        const total = avgR + avgG + avgB + 0.001;
-        if (avgG >= avgR || avgR / total < 0.38) {
-          isGreenStrawberry = true;
-        }
-      }
-    } catch {
-      //
-    }
-
     const visualPayload: VisualData = {
       item_name: 'Stroberi',
       category: 'Buah',
       confidence: detectedConfidence,
       visual_score: 5,
-      defects: isGreenStrawberry ? ['Warna Hijau (Mentah/Unripe)'] : [],
+      defects: [],
       image_url: capturedImage,
       batch_weight_kg: batchWeightKg
     };
     onStartAnalysis(visualPayload);
+
+    // Reset analyzing state after transition
+    setTimeout(() => {
+      setIsAnalyzing(false);
+    }, 1500);
   };
 
   const hasPhysicalTelemetry = gasData.has_data || gasData.is_connected;

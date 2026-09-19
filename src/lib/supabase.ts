@@ -232,12 +232,13 @@ export async function saveScanRecord(fusion: FusionResult): Promise<ScanRecord> 
         deteksi_penyakit: fusion.shelf_life?.disease_detected ?? 'Normal (Bebas Jamur)',
         tindakan_stok_pedagang: fusion.shelf_life?.inventory_action ?? 'Pajang di Etalase Depan Segera',
         rekomendasi_harga: fusion.shelf_life?.pricing_strategy ?? 'Harga Normal',
-        status_validasi_kroma: fusion.shelf_life?.color_validation?.consistency_status ?? 'Sangat Konsisten',
         dibuat_pada: nowIso
       };
 
       const { error: errIdn } = await supabase.from('riwayat_pemindaian').insert([indonesianPayload]);
-      if (!errIdn) {
+      if (errIdn) {
+        console.error('[Supabase Error] Gagal simpan ke riwayat_pemindaian:', errIdn);
+      } else {
         console.log('[Supabase] Saved to riwayat_pemindaian successfully with shelf-life');
       }
 
