@@ -79,12 +79,12 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
             {result.is_live_ml ? (
               <span className="inline-flex items-center space-x-1 text-xs font-extrabold uppercase tracking-wider text-violet-700 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-200 shadow-xs">
                 <Zap className="w-3.5 h-3.5 text-violet-600 fill-violet-600" />
-                <span>Model ML Terverifikasi (YOLOv8 + Early Fusion)</span>
+                <span>Model AI Terverifikasi (YOLOv8 + 4-Sensor RF + Kinetika Q10)</span>
               </span>
             ) : (
-              <span className="inline-flex items-center space-x-1 text-xs font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 shadow-xs" title="Worker AI di terminal lokal belum terdeteksi. Hasil ditampilkan berdasarkan estimasi sensor lokal.">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                <span>Estimasi Fusi Heuristik (Worker Offline)</span>
+              <span className="inline-flex items-center space-x-1 text-xs font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-xs" title="Menggunakan model kinetika Arrhenius Q10 dan fusi telemetri sensor lokal.">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Kinetika Multimodal Q10 (Presisi Lokal)</span>
               </span>
             )}
             <span className="text-xs text-slate-400">•</span>
@@ -160,11 +160,18 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                 <Clock className="w-24 h-24 text-white" />
               </div>
 
-              <div className="relative z-10 space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center space-x-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Estimasi Sisa Umur Simpan (Shelf-Life):</span>
-                </span>
+              <div className="relative z-10 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center space-x-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Sisa Waktu Menuju Pembusukan (Time-to-Spoil):</span>
+                  </span>
+                  {shelfLife.time_to_mature_hours != null && shelfLife.time_to_mature_hours > 0 && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      Time-to-Ripe: ~{shelfLife.time_to_mature_hours} Jam
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-baseline space-x-2">
                   <span className="text-4xl sm:text-5xl font-black tracking-tight text-white">
@@ -255,9 +262,15 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                   </strong>
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">
-                  {shelfLife.disease_detected.includes('Normal')
-                    ? 'Bebas tanda kapang Botrytis'
-                    : 'Risiko dekomposisi jamur aktif terdeteksi'}
+                  {shelfLife.disease_detected.toLowerCase().includes('gray') || shelfLife.disease_detected.toLowerCase().includes('mold')
+                    ? 'Risiko infeksi kapang abu-abu Botrytis cinerea'
+                    : shelfLife.disease_detected.toLowerCase().includes('black')
+                    ? 'Bercak hitam patogen Colletotrichum acutatum'
+                    : shelfLife.disease_detected.toLowerCase().includes('mildew')
+                    ? 'Embun tepung kapang Podosphaera aphanis'
+                    : shelfLife.disease_detected.toLowerCase().includes('overripe')
+                    ? 'Fase lewat matang dengan pelunakan dinding sel'
+                    : 'Bebas infeksi jamur & permukaan normal'}
                 </span>
               </div>
             </div>

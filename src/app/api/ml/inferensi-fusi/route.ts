@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
       confidence: Number(confidence ?? 0.95),
       visual_score: Number(visual_score ?? 3),
       defects: Array.isArray(defects) ? defects : [],
-      image_url: image_url || ''
+      image_url: image_url || '',
+      batch_weight_kg: Number(saved_weight_kg ?? 0.5)
     };
 
     const gasInput = {
@@ -82,10 +83,53 @@ export async function POST(request: NextRequest) {
 
     const fusionResult = runSensorFusion(visualInput, gasInput);
 
-    const weightKg = Number(saved_weight_kg ?? 0.5);
-    const preventedCH4 = weightKg * 12.5; // gram
-    const preventedCO2e = preventedCH4 * 28.0; // gram (GWP 28x)
-    const financialSavings = Math.round(weightKg * 20000); // IDR
+    // Cek apakah Python ML service aktif (Localhost REST atau Tunnel)
+    let isLiveMl = false;
+    try {
+      const mlBaseUrl = (process.env.NEXT_PUBLIC_ML_SERVICE_URL || 'http://localhost:8000').replace(/\/$/, '');
+      const mlRes = await fetch(`${mlBaseUrl}/predict/fusion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: image_url || '',
+          temperature: Number(temperature ?? 27.0),
+          humidity: Number(humidity ?? 65.0),
+          ch4_ppm: Number(ch4_ppm ?? 0.0),
+          aqi_ppm: Number(aqi_ppm ?? 0.0),
+          saved_weight_kg: Number(saved_weight_kg ?? 0.5)
+        }),
+        signal: AbortSignal.timeout(2000)
+      });
+      if (mlRes.ok) {
+        const mlJson = await mlRes.json();
+        if (mlJson.success && mlJson.data) {
+          isLiveMl = true;
+          const md = mlJson.data;
+          fusionResult.is_live_ml = true;
+          fusionResult.freshness_score = md.freshness_score;
+          fusionResult.status = md.status;
+          fusionResult.status_badge_color = md.badge_color;
+          fusionResult.shelf_life.hours_remaining = md.shelf_life_hours;
+          fusionResult.shelf_life.days_remaining = md.shelf_life_days;
+          fusionResult.shelf_life.ripeness_stage = md.ripeness_stage;
+          fusionResult.shelf_life.disease_detected = md.disease_detected;
+          fusionResult.shelf_life.inventory_action = md.inventory_action;
+          fusionResult.shelf_life.pricing_strategy = md.pricing_strategy;
+          if (md.impact) {
+            fusionResult.prevented_ch4_g = md.impact.prevented_ch4_g;
+            fusionResult.prevented_co2e_g = md.impact.prevented_co2e_g;
+            fusionResult.financial_savings_idr = md.impact.financial_savings_idr;
+          }
+        }
+      }
+    } catch {
+      // Python server sedang offline, gunakan local calculation engine
+    }
+
+    const weightKg = Number(saved_weight_kg ?? fusionResult.saved_weight_kg ?? 0.5);
+    const preventedCH4 = fusionResult.prevented_ch4_g;
+    const preventedCO2e = fusionResult.prevented_co2e_g;
+    const financialSavings = fusionResult.financial_savings_idr;
 
     // 1. Simpan ke riwayat_pemindaian
     const scanPayload = {
@@ -96,14 +140,14 @@ export async function POST(request: NextRequest) {
       status_kesegaran: fusionResult.status,
       warna_badge_status: fusionResult.status_badge_color,
       ringkasan_analisis: fusionResult.status_summary,
-      
+
       gas_ch4_ppm: Number(ch4_ppm ?? 0.0),
       gas_aqi_ppm: Number(aqi_ppm ?? 0.0),
       suhu_lingkungan_c: Number(temperature ?? 27.0),
       kelembapan_relatif_rh: Number(humidity ?? 65.0),
       spektrum_warna_hex: color_hex || '#DC2626',
       spektrum_nama_warna: color_name || 'Merah Stroberi',
-      
+
       sisa_umur_simpan_jam: fusionResult.shelf_life.hours_remaining,
       sisa_hari_simpan: fusionResult.shelf_life.days_remaining,
       fase_kematangan: fusionResult.shelf_life.ripeness_stage,
@@ -115,7 +159,7 @@ export async function POST(request: NextRequest) {
       kondisi_visual: (defects && defects.length > 0) ? defects.join(', ') : 'Permukaan Normal',
       tindakan_diambil: fusionResult.shelf_life.inventory_action,
       judul_rekomendasi: fusionResult.recommendation.title,
-      
+
       estimasi_berat_kg: weightKg,
       emisi_ch4_tercegah_g: preventedCH4,
       emisi_co2e_tercegah_g: preventedCO2e,

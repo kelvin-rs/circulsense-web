@@ -166,73 +166,77 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     adjustedVisualScore = 2;
   }
 
-  // 3. Stres Mikroklimat DHT22 (Hanya aktif jika sensor terhubung / suhu > 0)
-  let tempStressFactor = 1.0;
-  let rhStressFactor = 1.0;
-  if (temp > 0) {
-    tempStressFactor = 1.0 + Math.max(0, (temp - 22.0) * 0.09);
-  }
-  if (rh > 0) {
-    rhStressFactor = 1.0 + Math.max(0, (rh - 70.0) * 0.02);
-  }
+  // 3. Stres Mikroklimat DHT22 (Arrhenius Q10 = 2.1 berbasis suhu ideal simpan 20°C)
+  const effectiveTemp = temp > 0 ? Math.max(5.0, Math.min(45.0, temp)) : 27.0;
+  const tempStressFactor = Math.pow(2.1, (effectiveTemp - 20.0) / 10.0);
+  const rhStressFactor = rh > 75.0 ? 1.0 + (rh - 75.0) * 0.015 : 1.0;
   const environmentalStressFactor = Number((tempStressFactor * rhStressFactor).toFixed(2));
 
   // 4. Deteksi Peringatan Dini Gas Biokimia (MQ-4 & MQ-135)
-  const hasGasSpike = (ch4 >= 1.8 && ch4 > 0) || (aqi >= 90 && aqi > 0);
-  const isSeverelySpoiled = (ch4 >= 2.8 && ch4 > 0) || (aqi >= 140 && aqi > 0);
+  const hasGasSpike = (ch4 >= 1.6 && ch4 > 0) || (aqi >= 75 && aqi > 0);
+  const isSeverelySpoiled = (ch4 >= 2.6 && ch4 > 0) || (aqi >= 130 && aqi > 0);
 
-  // 5. Penentuan Fase Kematangan (Ripeness Stage) & Deteksi Penyakit
+  // 5. Penentuan Fase Kematangan (Ripeness Stage) & Deteksi Penyakit (5 Kelas Arsitektur Baru)
   let ripenessStage: RipenessStage = 'Fullripe (Matang Optimal)';
   let diseaseDetected: DiseaseStatus = 'Normal (Bebas Jamur)';
 
-  if (adjustedVisualScore >= 4 && !hasGasSpike) {
-    if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.42) {
+  const defectStr = visual.defects.join(' ').toLowerCase();
+
+  if (defectStr.includes('gray_mold') || defectStr.includes('kapang') || isSeverelySpoiled) {
+    diseaseDetected = 'Risiko Gray Mold (Botrytis)';
+    ripenessStage = 'Overripe (Lewat Matang)';
+  } else if (defectStr.includes('black_spot') || defectStr.includes('bintik')) {
+    diseaseDetected = 'Black Spot';
+    ripenessStage = 'Overripe (Lewat Matang)';
+  } else if (defectStr.includes('powdery_mildew') || defectStr.includes('embun tepung')) {
+    diseaseDetected = 'Powdery Mildew';
+  } else if (defectStr.includes('overripe') || hasGasSpike || adjustedVisualScore <= 2) {
+    diseaseDetected = 'Overripe (Lewat Matang)';
+    ripenessStage = 'Overripe (Lewat Matang)';
+  } else if (adjustedVisualScore >= 4 && !hasGasSpike) {
+    if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.40) {
       ripenessStage = 'Unripe (Mentah)';
-    } else if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.50) {
+    } else if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.48) {
       ripenessStage = 'Semiripe (Setengah Matang)';
     } else {
       ripenessStage = 'Fullripe (Matang Optimal)';
     }
-  } else if (adjustedVisualScore === 3) {
+  } else {
     ripenessStage = 'Fullripe (Matang Optimal)';
-  } else if (adjustedVisualScore === 2 || hasGasSpike) {
-    ripenessStage = 'Overripe (Lewat Matang)';
-    if (rh > 78 || aqi > 80 || visual.defects.some(d => d.toLowerCase().includes('jamur') || d.toLowerCase().includes('bintik'))) {
-      diseaseDetected = 'Risiko Gray Mold (Botrytis)';
-    }
-  } else {
-    ripenessStage = 'Overripe (Lewat Matang)';
-    diseaseDetected = 'Risiko Gray Mold (Botrytis)';
   }
 
-  // 6. Komputasi Prediksi Sisa Umur Simpan (Shelf-Life in Hours & Days)
-  let baselineHours = 48; // default Fullripe
-  let timeToMatureHours = 0;
+  // 6. Komputasi Prediksi Sisa Umur Simpan (Shelf-Life in Hours & Days via Multimodal Kinetics)
+  const baseSpoilageDays: Record<RipenessStage, number> = {
+    'Unripe (Mentah)': 10.0,
+    'Semiripe (Setengah Matang)': 7.0,
+    'Fullripe (Matang Optimal)': 4.5,
+    'Overripe (Lewat Matang)': 1.0
+  };
 
-  if (ripenessStage === 'Unripe (Mentah)') {
-    baselineHours = 144; // 6 hari
-    timeToMatureHours = 48;
-  } else if (ripenessStage === 'Semiripe (Setengah Matang)') {
-    baselineHours = 96;  // 4 hari
-    timeToMatureHours = 24;
-  } else if (ripenessStage === 'Fullripe (Matang Optimal)') {
-    baselineHours = 48;  // 2 hari
-    timeToMatureHours = 0;
-  } else {
-    baselineHours = 18;  // < 1 hari
-    timeToMatureHours = 0;
+  const diseaseImpactFactors: Record<string, number> = {
+    'Normal (Bebas Jamur)': 1.0,
+    'Normal': 1.0,
+    'Powdery Mildew': 0.4,
+    'Powdery_Mildew': 0.4,
+    'Black Spot': 0.15,
+    'Black_Spot': 0.15,
+    'Overripe (Lewat Matang)': 0.25,
+    'Overripe': 0.25,
+    'Risiko Gray Mold (Botrytis)': 0.05,
+    'Gray_Mold': 0.05
+  };
+
+  const baseDays = baseSpoilageDays[ripenessStage] || 4.5;
+  const diseaseFactor = diseaseImpactFactors[diseaseDetected] ?? 1.0;
+
+  let calculatedDays = (baseDays * diseaseFactor) / environmentalStressFactor;
+  if (diseaseDetected === 'Risiko Gray Mold (Botrytis)' || isSeverelySpoiled) {
+    calculatedDays = Math.min(calculatedDays, 0.2);
   }
 
-  if (isSeverelySpoiled) {
-    baselineHours = 0;
-  } else if (hasGasSpike) {
-    baselineHours = Math.min(baselineHours, 12);
-  }
-
-  const effectiveHours = baselineHours > 0 
-    ? Math.max(4, Math.round(baselineHours / environmentalStressFactor))
-    : 0;
-  const daysRemaining = Number((effectiveHours / 24).toFixed(1));
+  const daysRemaining = Number(Math.max(0.0, calculatedDays).toFixed(1));
+  const effectiveHours = Math.max(0, Math.round(daysRemaining * 24.0));
+  const timeToMatureHours = ripenessStage === 'Unripe (Mentah)' ? 48 : (ripenessStage === 'Semiripe (Setengah Matang)' ? 24 : 0);
 
   // 7. Keputusan Status & Badge Kesegaran
   let status: FreshnessStatus = 'Layu';
@@ -240,26 +244,31 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   let calculatedScore = 3;
   let statusSummary = '';
 
-  if (effectiveHours >= 48 && !hasGasSpike) {
-    status = 'Segar';
-    badgeColor = 'green';
-    calculatedScore = 5;
-    statusSummary = `Kondisi prima (Sisa umur simpan ~${daysRemaining} hari). Stok aman untuk pajangan utama harga penuh.`;
-  } else if (effectiveHours >= 24) {
-    status = 'Segar';
-    badgeColor = 'green';
-    calculatedScore = 4;
-    statusSummary = `Matang optimal (Sisa umur simpan ~${effectiveHours} jam). Prioritaskan pajang di rak depan hari ini.`;
-  } else if (effectiveHours >= 10 && !isSeverelySpoiled) {
-    status = 'Layu';
-    badgeColor = 'yellow';
-    calculatedScore = 2;
-    statusSummary = `Mendekati batas simpan (Sisa ~${effectiveHours} jam). Ambil aksi jual cepat atau olah sebelum busuk.`;
-  } else {
+  if (diseaseDetected === 'Risiko Gray Mold (Botrytis)' || daysRemaining < 0.5) {
     status = 'Busuk';
     badgeColor = 'red';
     calculatedScore = 1;
-    statusSummary = `Tidak layak konsumsi. Segera pisahkan ke komposter organik agar tidak menulari stok lain.`;
+    statusSummary = 'Terdeteksi infeksi jamur kapang / pembusukan aktif. Segera pisahkan ke komposter organik agar tidak menulari stok lain.';
+  } else if (diseaseDetected === 'Black Spot' || diseaseDetected === 'Powdery Mildew' || daysRemaining < 1.5) {
+    status = 'Layu';
+    badgeColor = 'yellow';
+    calculatedScore = 2;
+    statusSummary = `Stres patologi (${diseaseDetected}) atau mendekati batas simpan (~${daysRemaining} hari). Ambil tindakan diskon jual cepat hari ini.`;
+  } else if (ripenessStage === 'Overripe (Lewat Matang)') {
+    status = 'Terlalu Matang';
+    badgeColor = 'yellow';
+    calculatedScore = 3;
+    statusSummary = `Fase lewat matang optimal (Sisa ~${effectiveHours} jam). Aroma pektin sangat kuat, ideal dialihkan ke pengolahan selai UMKM.`;
+  } else if (daysRemaining >= 3.0) {
+    status = 'Segar';
+    badgeColor = 'green';
+    calculatedScore = 5;
+    statusSummary = `Kondisi prima (Sisa umur simpan ~${daysRemaining} hari). Stok aman untuk pajangan utama rak etalase harga penuh.`;
+  } else {
+    status = 'Segar';
+    badgeColor = 'green';
+    calculatedScore = 4;
+    statusSummary = `Matang optimal (Sisa umur simpan ~${effectiveHours} jam). Prioritaskan pajang di rak depan display hari ini.`;
   }
 
   // 8. Rekomendasi Aksi Inventaris & Strategi Penjualan Cepat (Merchant Action)
@@ -267,32 +276,41 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   let pricingStrategy: PricingAction = 'Harga Normal';
   let urgencyLevel: 'Aman' | 'Perhatian' | 'Kritis' | 'Kedaluwarsa' = 'Aman';
 
-  if (effectiveHours > 72 && !hasGasSpike) {
-    inventoryAction = 'Simpan di Gudang / Stok Cadangan';
-    pricingStrategy = 'Harga Normal';
-    urgencyLevel = 'Aman';
-  } else if (effectiveHours >= 36 && !hasGasSpike) {
-    inventoryAction = 'Pajang di Etalase Depan Segera';
-    pricingStrategy = 'Harga Normal';
-    urgencyLevel = 'Perhatian';
-  } else if (effectiveHours >= 14 && !isSeverelySpoiled) {
-    inventoryAction = 'Diskon / Jual Cepat Hari Ini';
-    pricingStrategy = 'Diskon 30-50%';
-    urgencyLevel = 'Kritis';
-  } else if (effectiveHours > 0 && !isSeverelySpoiled) {
-    inventoryAction = 'Alihkan ke Pengolah Selai / Jus';
-    pricingStrategy = 'Jual Murah Borongan';
-    urgencyLevel = 'Kritis';
-  } else {
+  if (status === 'Busuk') {
     inventoryAction = 'Pilah ke Komposter Organik / Bio-fermentasi';
     pricingStrategy = 'Bahan Baku Olahan';
     urgencyLevel = 'Kedaluwarsa';
+  } else if (status === 'Layu') {
+    inventoryAction = 'Diskon / Jual Cepat Hari Ini';
+    pricingStrategy = 'Diskon 30-50%';
+    urgencyLevel = 'Kritis';
+  } else if (status === 'Terlalu Matang') {
+    inventoryAction = 'Alihkan ke Pengolah Selai / Jus';
+    pricingStrategy = 'Jual Murah Borongan';
+    urgencyLevel = 'Perhatian';
+  } else if (ripenessStage === 'Unripe (Mentah)' || ripenessStage === 'Semiripe (Setengah Matang)') {
+    inventoryAction = 'Simpan di Gudang / Stok Cadangan';
+    pricingStrategy = 'Harga Normal';
+    urgencyLevel = 'Aman';
+  } else {
+    inventoryAction = 'Pajang di Etalase Depan Segera';
+    pricingStrategy = 'Harga Normal';
+    urgencyLevel = 'Aman';
   }
+
+  const timeToRipeHours = timeToMatureHours;
+  const timeToRipeDays = Number((timeToRipeHours / 24.0).toFixed(1));
+  const timeToSpoilHours = effectiveHours;
+  const timeToSpoilDays = daysRemaining;
 
   const shelfLifeDetail: ShelfLifeDetail = {
     hours_remaining: effectiveHours,
     days_remaining: daysRemaining,
     time_to_mature_hours: timeToMatureHours,
+    time_to_ripe_hours: timeToRipeHours,
+    time_to_ripe_days: timeToRipeDays,
+    time_to_spoil_hours: timeToSpoilHours,
+    time_to_spoil_days: timeToSpoilDays,
     ripeness_stage: ripenessStage,
     disease_detected: diseaseDetected,
     inventory_action: inventoryAction,

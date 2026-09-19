@@ -2,7 +2,17 @@ export type FreshnessStatus = 'Segar' | 'Layu' | 'Busuk' | 'Terlalu Matang';
 
 export type RipenessStage = 'Unripe (Mentah)' | 'Semiripe (Setengah Matang)' | 'Fullripe (Matang Optimal)' | 'Overripe (Lewat Matang)';
 
-export type DiseaseStatus = 'Normal (Bebas Jamur)' | 'Risiko Gray Mold (Botrytis)' | 'Powdery Mildew' | 'Black Spot';
+export type DiseaseStatus = 
+  | 'Normal (Bebas Jamur)' 
+  | 'Normal'
+  | 'Risiko Gray Mold (Botrytis)' 
+  | 'Gray_Mold'
+  | 'Powdery Mildew' 
+  | 'Powdery_Mildew'
+  | 'Black Spot'
+  | 'Black_Spot'
+  | 'Overripe (Lewat Matang)'
+  | 'Overripe';
 
 export type InventoryAction = 
   | 'Simpan di Gudang / Stok Cadangan'
@@ -24,9 +34,13 @@ export interface ColorValidationDetail {
 }
 
 export interface ShelfLifeDetail {
-  hours_remaining: number;       // e.g. 48 jam
-  days_remaining: number;        // e.g. 2.0 hari
-  time_to_mature_hours?: number; // e.g. 0 jika sudah matang, atau 48 jika mentah
+  hours_remaining: number;       // Sisa jam simpan menuju pembusukan (time-to-spoil)
+  days_remaining: number;        // Sisa hari simpan menuju pembusukan (time-to-spoil)
+  time_to_mature_hours?: number; // Sisa jam menuju kondisi matang optimal (time-to-ripe)
+  time_to_ripe_hours?: number;   // Alias time-to-ripe (jam)
+  time_to_ripe_days?: number;    // Alias time-to-ripe (hari)
+  time_to_spoil_hours?: number;  // Alias time-to-spoil (jam)
+  time_to_spoil_days?: number;   // Alias time-to-spoil (hari)
   ripeness_stage: RipenessStage;
   disease_detected: DiseaseStatus;
   inventory_action: InventoryAction;
