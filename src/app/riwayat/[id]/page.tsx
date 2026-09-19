@@ -112,9 +112,10 @@ export default function RiwayatDetailPage() {
     );
   }
 
-  const isFresh = record.freshness_score >= 4;
-  const isDecaying = record.freshness_score === 3;
-  const isRotten = record.status === 'Busuk' || record.freshness_score <= 1 || (record.disease_detected?.toLowerCase().includes('gray') ?? false);
+  const scorePercent = record.freshness_score > 5 ? record.freshness_score : Math.round(record.freshness_score * 20);
+  const isFresh = scorePercent >= 70;
+  const isDecaying = scorePercent >= 40 && scorePercent < 70;
+  const isRotten = record.status === 'Busuk' || scorePercent < 40 || (record.disease_detected?.toLowerCase().includes('gray') ?? false);
 
   return (
     <main className="min-h-screen bg-white text-[#1E293B] flex flex-col selection:bg-[#16A34A] selection:text-white">
@@ -177,7 +178,7 @@ export default function RiwayatDetailPage() {
                     isFresh ? 'text-[#16A34A]' : isDecaying ? 'text-amber-600' : 'text-red-600'
                   }`}
                 >
-                  {record.freshness_score}/5
+                  {record.freshness_score > 5 ? `${record.freshness_score}%` : `${record.freshness_score}/5`}
                 </span>
                 <span
                   className={`text-xs font-extrabold px-2.5 py-1 rounded-full ${
@@ -193,10 +194,12 @@ export default function RiwayatDetailPage() {
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="text-right max-w-[50%]">
               <span className="text-xs text-slate-400 block font-medium">Kondisi Visual</span>
-              <strong className="text-xs sm:text-sm text-[#0F172A] font-bold">
-                {record.visual_condition || 'Normal'}
+              <strong className="text-xs sm:text-sm text-[#0F172A] font-bold block truncate">
+                {record.visual_condition && !record.visual_condition.startsWith('{')
+                  ? record.visual_condition
+                  : 'Segar & Bebas Cacat'}
               </strong>
             </div>
           </div>

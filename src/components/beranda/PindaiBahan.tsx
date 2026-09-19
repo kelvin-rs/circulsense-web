@@ -36,6 +36,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   const batchWeightKg = 1.0;
   const [detectedConfidence, setDetectedConfidence] = useState<number>(0.96);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -178,6 +179,8 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       activateCamera();
       return;
     }
+    if (isAnalyzing) return;
+    setIsAnalyzing(true);
 
     let isGreenStrawberry = false;
     try {
@@ -574,10 +577,15 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 {/* Start Sensor Fusion Analysis Button */}
                 <button
                   type="button"
+                  disabled={isAnalyzing}
                   onClick={handleStartAnalysis}
-                  className="w-full font-bold py-3.5 px-5 rounded-xl transition duration-150 flex items-center justify-center space-x-2 text-xs sm:text-sm cursor-pointer bg-[#16A34A] hover:bg-[#15803D] text-white shadow-md shadow-emerald-700/20"
+                  className={`w-full font-bold py-3.5 px-5 rounded-xl transition duration-150 flex items-center justify-center space-x-2 text-xs sm:text-sm cursor-pointer ${
+                    isAnalyzing
+                      ? 'bg-slate-400 text-white cursor-not-allowed'
+                      : 'bg-[#16A34A] hover:bg-[#15803D] text-white shadow-md shadow-emerald-700/20'
+                  }`}
                 >
-                  <span>Prediksi Umur Simpan Stroberi</span>
+                  <span>{isAnalyzing ? 'Menyiapkan Analisis...' : 'Prediksi Umur Simpan Stroberi'}</span>
                   <span className="text-base font-bold">→</span>
                 </button>
               </div>

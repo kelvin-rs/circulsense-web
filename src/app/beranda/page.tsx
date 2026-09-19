@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
 import { PindaiBahan } from '@/components/beranda/PindaiBahan';
@@ -117,6 +117,8 @@ export default function BerandaPage() {
     };
   }, []);
 
+  const isProcessingAnalysisRef = useRef(false);
+
   const handleStartAnalysis = (visualData: VisualData) => {
     setActiveVisualData(visualData);
     setSubView('proses');
@@ -124,12 +126,14 @@ export default function BerandaPage() {
   };
 
   const handleAnalysisCompleted = async () => {
-    if (!activeVisualData) return;
+    if (!activeVisualData || isProcessingAnalysisRef.current) return;
+    isProcessingAnalysisRef.current = true;
 
-    // Basis awal fusi kinetika
-    const result = runSensorFusion(activeVisualData, gasData);
-    let usedLiveMl = false;
-    let isCloudQueue = false;
+    try {
+      // Basis awal fusi kinetika
+      const result = runSensorFusion(activeVisualData, gasData);
+      let usedLiveMl = false;
+      let isCloudQueue = false;
 
     const mlBaseUrl = (process.env.NEXT_PUBLIC_ML_SERVICE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -253,6 +257,9 @@ export default function BerandaPage() {
 
     setCurrentFusionResult(result);
     setSubView('hasil');
+    } finally {
+      isProcessingAnalysisRef.current = false;
+    }
   };
 
   return (

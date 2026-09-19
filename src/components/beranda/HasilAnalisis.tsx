@@ -147,13 +147,6 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              Peringatan Dini Pedagang
-            </span>
-            <span className="inline-flex items-center space-x-1 text-[11px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
-              <Sparkles className="w-3 h-3 text-emerald-600" />
-              <span>AI Terverifikasi</span>
-            </span>
             <span className="text-xs text-slate-400">•</span>
             <span className="text-xs text-slate-500 font-medium">
               Waktu Pindai: {result.scan_time}

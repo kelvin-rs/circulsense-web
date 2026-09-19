@@ -40,6 +40,8 @@ export async function fetchScanRecords(): Promise<ScanRecord[]> {
       let queryIdn = supabase
         .from('riwayat_pemindaian')
         .select('*')
+        .neq('status_kesegaran', 'DIHAPUS')
+        .neq('status_kesegaran', 'MENUNGGU_INFERENSI_ML')
         .order('dibuat_pada', { ascending: false });
 
       if (currentUserId) {
@@ -55,8 +57,21 @@ export async function fetchScanRecords(): Promise<ScanRecord[]> {
           if (typeof cleanVisual === 'string' && cleanVisual.trim().startsWith('{')) {
             try {
               meta = JSON.parse(cleanVisual);
-              cleanVisual = (meta.defects && meta.defects.length > 0) ? meta.defects.join(', ') : (meta.status || cleanVisual);
-            } catch {}
+              if (meta.defects && Array.isArray(meta.defects) && meta.defects.length > 0) {
+                cleanVisual = meta.defects.join(', ');
+              } else if (meta.disease_detected && !meta.disease_detected.toLowerCase().includes('normal')) {
+                cleanVisual = meta.disease_detected;
+              } else if (meta.ripeness_stage) {
+                cleanVisual = `${meta.ripeness_stage} (Normal)`;
+              } else {
+                cleanVisual = 'Segar & Bebas Cacat';
+              }
+            } catch {
+              cleanVisual = 'Segar & Bebas Cacat';
+            }
+          }
+          if (!cleanVisual || cleanVisual.trim() === '' || cleanVisual.startsWith('{')) {
+            cleanVisual = 'Segar & Bebas Cacat';
           }
           return {
             id: row.id,
@@ -249,6 +264,7 @@ export async function saveScanRecord(fusion: FusionResult): Promise<ScanRecord> 
 export async function deleteScanRecord(id: string): Promise<boolean> {
   if (supabase) {
     try {
+      await supabase.from('riwayat_pemindaian').update({ status_kesegaran: 'DIHAPUS' }).eq('id', id);
       await supabase.from('riwayat_pemindaian').delete().eq('id', id);
       await supabase.from('scans').delete().eq('id', id);
     } catch (e) {
@@ -260,6 +276,39 @@ export async function deleteScanRecord(id: string): Promise<boolean> {
     const existing = await fetchScanRecords();
     const updated = existing.filter(r => r.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  return true;
+}
+
+/**
+ * Clear all scan records from Supabase and local storage
+ */
+export async function clearAllScanRecords(): Promise<boolean> {
+  if (supabase) {
+    try {
+      let currentUserId: string | null = null;
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        currentUserId = authData?.user?.id || null;
+      } catch {}
+
+      if (currentUserId) {
+        await supabase.from('riwayat_pemindaian').update({ status_kesegaran: 'DIHAPUS' }).eq('id_pengguna', currentUserId);
+        await supabase.from('riwayat_pemindaian').delete().eq('id_pengguna', currentUserId);
+      } else {
+        await supabase.from('riwayat_pemindaian').update({ status_kesegaran: 'DIHAPUS' }).neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('riwayat_pemindaian').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('scans').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+    } catch (e) {
+      console.warn('Supabase clear all error:', e);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
   }
 
   return true;
@@ -366,14 +415,19 @@ export async function requestCloudMlInference(
         const hoursSpoil = Number(record.sisa_umur_simpan_jam ?? visualMeta.time_to_spoil_hours ?? 48);
         const daysSpoil = Number(record.sisa_hari_simpan ?? visualMeta.time_to_spoil_days ?? 2.0);
 
+        const isUnripe = (record.fase_kematangan || '').toLowerCase().includes('unripe') || (record.fase_kematangan || '').toLowerCase().includes('mentah');
+        const isSemiripe = (record.fase_kematangan || '').toLowerCase().includes('semi') || (record.fase_kematangan || '').toLowerCase().includes('setengah');
+        const timeToRipe = Number(visualMeta.time_to_ripe_hours ?? (isUnripe ? 48 : isSemiripe ? 24 : 0));
+        const timeToRipeDays = Number(visualMeta.time_to_ripe_days ?? (timeToRipe / 24));
+
         return {
           freshness_score: Number(record.skor_kesegaran ?? 85),
           status: record.status_kesegaran ?? 'Prima',
           badge_color: record.warna_badge_status ?? '#16A34A',
           shelf_life_hours: hoursSpoil,
           shelf_life_days: daysSpoil,
-          time_to_ripe_hours: Number(visualMeta.time_to_ripe_hours ?? 0),
-          time_to_ripe_days: Number(visualMeta.time_to_ripe_days ?? 0),
+          time_to_ripe_hours: timeToRipe,
+          time_to_ripe_days: timeToRipeDays,
           time_to_spoil_hours: hoursSpoil,
           time_to_spoil_days: daysSpoil,
           ripeness_stage: record.fase_kematangan ?? 'Fullripe (Matang Optimal)',

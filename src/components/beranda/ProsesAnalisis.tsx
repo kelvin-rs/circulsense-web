@@ -34,23 +34,40 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
   const [progress, setProgress] = useState<number>(10);
   const currentStepIndex = Math.min(Math.floor((progress / 100) * STEPS.length), STEPS.length - 1);
 
+  const onCompleteRef = React.useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const hasTriggeredRef = React.useRef(false);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          setTimeout(() => {
-            onComplete();
-          }, 300);
+          if (!hasTriggeredRef.current) {
+            hasTriggeredRef.current = true;
+            setTimeout(() => {
+              onCompleteRef.current();
+            }, 300);
+          }
           return 100;
         }
         const next = prev + 18;
-        return next > 100 ? 100 : next;
+        if (next >= 100) {
+          clearInterval(interval);
+          if (!hasTriggeredRef.current) {
+            hasTriggeredRef.current = true;
+            setTimeout(() => {
+              onCompleteRef.current();
+            }, 300);
+          }
+          return 100;
+        }
+        return next;
       });
     }, 400);
 
     return () => clearInterval(interval);
-  }, [onComplete]);
+  }, []);
 
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
