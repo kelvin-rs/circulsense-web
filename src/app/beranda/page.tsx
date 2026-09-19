@@ -182,8 +182,8 @@ export default function BerandaPage() {
 
           setSyncAlert({
             type: 'success',
-            title: 'Hasil Terverifikasi AI Nyata (Localhost REST)',
-            message: `Inferensi YOLOv8 visual, 4-Sensor Random Forest, dan Kinetika Multimodal Q10 diproses langsung oleh Terminal Python ML (${md.metrics?.inference_ms ?? 35}ms).`
+            title: 'Hasil Terverifikasi AI (Lokal)',
+            message: `Pemeriksaan visual kamera dan sensor fisik selesai diproses (${md.metrics?.inference_ms ?? 35}ms).`
           });
         }
       }
@@ -194,7 +194,7 @@ export default function BerandaPage() {
     // 2. Jika direct REST tidak dapat diakses (misal pada website Vercel), kirim ke Cloud Queue Supabase!
     if (!usedLiveMl) {
       try {
-        const cloudRes = await requestCloudMlInference(activeVisualData, gasData, 6500);
+        const cloudRes = await requestCloudMlInference(activeVisualData, gasData, 12000);
         if (cloudRes) {
           usedLiveMl = true;
           isCloudQueue = true;
@@ -224,8 +224,8 @@ export default function BerandaPage() {
 
           setSyncAlert({
             type: 'success',
-            title: 'Hasil Terverifikasi AI Nyata (Vercel Cloud Bridge)',
-            message: `Terminal ML di laptop Anda merespons tugas dari Vercel! Diproses via YOLOv8, Random Forest & Kinetika Q10 (${cloudRes.metrics?.inference_ms ?? 45}ms).`
+            title: 'Hasil Terverifikasi AI (Cloud Bridge)',
+            message: `Pemeriksaan visual kamera dan sensor fisik berhasil diproses dari cloud (${cloudRes.metrics?.inference_ms ?? 45}ms).`
           });
         }
       } catch (err) {
@@ -236,8 +236,8 @@ export default function BerandaPage() {
     if (!usedLiveMl) {
       setSyncAlert({
         type: 'info',
-        title: 'Mode Kinetika Terpadu (Lokal)',
-        message: 'Terminal ML sedang tidak aktif. Hasil dihitung menggunakan model kinetika biokimia Q10 dan fusi telemetri sensor secara presisi.'
+        title: 'Mode Analisis Cerdas Standar',
+        message: 'Hasil dihitung menggunakan model kualitas mutu buah dan telemetri sensor terpadu.'
       });
     }
 

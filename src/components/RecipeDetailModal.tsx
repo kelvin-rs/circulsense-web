@@ -37,7 +37,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
       <div 
-        className="bg-white w-full max-w-xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-[#E2E8F0]"
+        className="bg-white w-full max-w-xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-[#E2E8F0]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Photo */}

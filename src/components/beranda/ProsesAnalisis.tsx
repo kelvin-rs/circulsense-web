@@ -58,7 +58,7 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-16 pt-4">
-      <div className="flex items-center justify-between bg-white p-5 rounded-3xl border border-[#E2E8F0] shadow-xs">
+      <div className="flex items-center justify-between bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-xs">
         <div>
           <h2 className="text-lg font-bold text-[#0F172A]">Proses Analisis Fusi Sensor</h2>
           <p className="text-xs text-[#64748B]">Sedang memproses data visual dan telemetri gas</p>
@@ -72,7 +72,7 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 border border-[#E2E8F0] shadow-xs flex flex-col items-center justify-center">
+      <div className="bg-white rounded-2xl p-8 border border-[#E2E8F0] shadow-xs flex flex-col items-center justify-center">
         <div className="relative w-36 h-36 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 130 130">
             <circle
@@ -113,7 +113,7 @@ export const ProsesAnalisis: React.FC<ProsesAnalisisProps> = ({
         </p>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-xs space-y-3">
+      <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-xs space-y-3">
         <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
           Tahapan Algoritma Fusi
         </h3>

@@ -190,17 +190,13 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     ripenessStage = 'Overripe (Lewat Matang)';
   } else if (defectStr.includes('powdery_mildew') || defectStr.includes('embun tepung')) {
     diseaseDetected = 'Powdery Mildew';
-  } else if (defectStr.includes('overripe') || hasGasSpike || adjustedVisualScore <= 2) {
+  } else if (defectStr.includes('overripe') || hasGasSpike) {
     diseaseDetected = 'Overripe (Lewat Matang)';
     ripenessStage = 'Overripe (Lewat Matang)';
-  } else if (adjustedVisualScore >= 4 && !hasGasSpike) {
-    if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.40) {
-      ripenessStage = 'Unripe (Mentah)';
-    } else if (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.48) {
-      ripenessStage = 'Semiripe (Setengah Matang)';
-    } else {
-      ripenessStage = 'Fullripe (Matang Optimal)';
-    }
+  } else if (defectStr.includes('hijau') || defectStr.includes('unripe') || colorVal.sensor_name.toLowerCase().includes('hijau') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.40)) {
+    ripenessStage = 'Unripe (Mentah)';
+  } else if (defectStr.includes('oranye') || colorVal.sensor_name.toLowerCase().includes('oranye') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.48)) {
+    ripenessStage = 'Semiripe (Setengah Matang)';
   } else {
     ripenessStage = 'Fullripe (Matang Optimal)';
   }
@@ -249,7 +245,7 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     badgeColor = 'red';
     calculatedScore = 1;
     statusSummary = 'Terdeteksi infeksi jamur kapang / pembusukan aktif. Segera pisahkan ke komposter organik agar tidak menulari stok lain.';
-  } else if (diseaseDetected === 'Black Spot' || diseaseDetected === 'Powdery Mildew' || daysRemaining < 1.5) {
+  } else if (diseaseDetected === 'Black Spot' || diseaseDetected === 'Powdery Mildew' || (daysRemaining < 1.0 && ripenessStage !== 'Unripe (Mentah)' && ripenessStage !== 'Semiripe (Setengah Matang)')) {
     status = 'Layu';
     badgeColor = 'yellow';
     calculatedScore = 2;
@@ -259,6 +255,16 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     badgeColor = 'yellow';
     calculatedScore = 3;
     statusSummary = `Fase lewat matang optimal (Sisa ~${effectiveHours} jam). Aroma pektin sangat kuat, ideal dialihkan ke pengolahan selai UMKM.`;
+  } else if (ripenessStage === 'Unripe (Mentah)') {
+    status = 'Segar';
+    badgeColor = 'green';
+    calculatedScore = 5;
+    statusSummary = `Buah mentah / hijau (Sisa umur simpan ~${daysRemaining} hari, butuh ~${timeToMatureHours} jam menuju matang). Stok sangat tahan lama, simpan di ruang pemeraman.`;
+  } else if (ripenessStage === 'Semiripe (Setengah Matang)') {
+    status = 'Segar';
+    badgeColor = 'green';
+    calculatedScore = 5;
+    statusSummary = `Buah setengah matang (Sisa umur simpan ~${daysRemaining} hari, butuh ~${timeToMatureHours} jam menuju matang). Aman disimpan untuk display esok hari.`;
   } else if (daysRemaining >= 3.0) {
     status = 'Segar';
     badgeColor = 'green';

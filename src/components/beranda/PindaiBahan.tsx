@@ -179,12 +179,42 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       return;
     }
 
+    let isGreenStrawberry = false;
+    try {
+      const imgEl = new Image();
+      imgEl.src = capturedImage;
+      const cvs = document.createElement('canvas');
+      cvs.width = 64;
+      cvs.height = 64;
+      const c = cvs.getContext('2d');
+      if (c) {
+        c.drawImage(imgEl, 0, 0, 64, 64);
+        const p = c.getImageData(16, 16, 32, 32).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        for (let i = 0; i < p.length; i += 4) {
+          rSum += p[i];
+          gSum += p[i + 1];
+          bSum += p[i + 2];
+          count++;
+        }
+        const avgR = rSum / (count || 1);
+        const avgG = gSum / (count || 1);
+        const avgB = bSum / (count || 1);
+        const total = avgR + avgG + avgB + 0.001;
+        if (avgG >= avgR || avgR / total < 0.38) {
+          isGreenStrawberry = true;
+        }
+      }
+    } catch {
+      //
+    }
+
     const visualPayload: VisualData = {
       item_name: 'Stroberi',
       category: 'Buah',
       confidence: detectedConfidence,
-      visual_score: 3,
-      defects: ['Tekstur Lunak'],
+      visual_score: 5,
+      defects: isGreenStrawberry ? ['Warna Hijau (Mentah/Unripe)'] : [],
       image_url: capturedImage,
       batch_weight_kg: batchWeightKg
     };
@@ -250,7 +280,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
 
             {/* Targeted Scanner Frame Grid */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6 sm:p-12">
-              <div className="relative w-full max-w-sm aspect-square border-2 border-dashed border-white/60 rounded-3xl flex items-center justify-center">
+              <div className="relative w-full max-w-sm aspect-square border-2 border-dashed border-white/60 rounded-2xl flex items-center justify-center">
                 {/* Corner Markers */}
                 <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#16A34A] rounded-tl-xl" />
                 <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#16A34A] rounded-tr-xl" />
@@ -516,7 +546,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                   <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                     <div>
                       <span className="text-[#64748B] block font-medium">Sensor Metana (MQ-4):</span>
-                      <span className="text-[10px] text-[#94A3B8]">Emisi Gas $CH_4$</span>
+                      <span className="text-[10px] text-[#94A3B8]">Gas Pembusukan (CH₄)</span>
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-sm font-extrabold text-[#0F172A]">
@@ -684,7 +714,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
                 </span>
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-600 bg-slate-100 border-slate-200">
-                $CH_4$ Pembusukan
+                Gas Pembusukan (CH₄)
               </span>
             </div>
 
