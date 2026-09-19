@@ -229,20 +229,20 @@ export default function RiwayatDetailPage() {
               >
                 {isRotten
                   ? 'Sisa 0 Jam (Segera Dipilah)'
-                  : `Sisa ~${record.shelf_life_hours ?? 48} Jam (${record.shelf_life_days ?? 2.0} Hari)`}
+                  : `Sisa ${record.shelf_life_hours ?? 48} Jam (${record.shelf_life_days ?? 2.0} Hari)`}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
               <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-500 font-medium block">Tindakan Inventaris:</span>
+                <span className="text-xs text-slate-500 font-medium block">Tindakan Inventaris:</span>
                 <strong className="text-slate-900 font-bold text-xs mt-0.5 block">
                   {record.inventory_action || (isRotten ? 'Pilah ke Komposter Organik' : 'Pajang di Etalase Depan Segera')}
                 </strong>
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-500 font-medium block">Deteksi Patogen & Cacat:</span>
+                <span className="text-xs text-slate-500 font-medium block">Deteksi Patogen & Cacat:</span>
                 <div className="flex items-center space-x-1.5 mt-0.5">
                   {record.disease_detected && !record.disease_detected.toLowerCase().includes('normal') && !record.disease_detected.toLowerCase().includes('bebas') ? (
                     <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 truncate">
@@ -257,7 +257,7 @@ export default function RiwayatDetailPage() {
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-500 font-medium block">Strategi Harga & Kematangan:</span>
+                <span className="text-xs text-slate-500 font-medium block">Strategi Harga & Kematangan:</span>
                 <strong className="text-slate-800 font-bold text-xs mt-0.5 block truncate">
                   {record.pricing_strategy || (isRotten ? 'Bahan Olahan' : 'Harga Normal')} • {record.ripeness_stage || 'Fullripe'}
                 </strong>

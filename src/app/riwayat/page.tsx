@@ -18,11 +18,13 @@ import {
   Camera,
   Layers
 } from 'lucide-react';
+import { AutoAlert, AlertType } from '@/components/AutoAlert';
 
 export default function RiwayatPage() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeCategory, setActiveCategory] = useState<'Semua' | 'Sayur' | 'Buah'>('Semua');
+  const [alertState, setAlertState] = useState<{ type: AlertType; title: string; message: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [tempDate, setTempDate] = useState<string>('');
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState<boolean>(false);
@@ -81,6 +83,11 @@ export default function RiwayatPage() {
     await deleteScanRecord(id);
     setRecords((prev) => prev.filter((r) => r.id !== id));
     setItemToDelete(null);
+    setAlertState({
+      type: 'info',
+      title: 'Sampel Dihapus',
+      message: 'Catatan pemindaian berhasil dihapus dari riwayat.'
+    });
   };
 
   const handleClearAllRecords = async () => {
@@ -89,6 +96,17 @@ export default function RiwayatPage() {
       await clearAllScanRecords();
       setRecords([]);
       setIsConfirmClearAllOpen(false);
+      setAlertState({
+        type: 'success',
+        title: 'Riwayat Dibersihkan',
+        message: 'Seluruh riwayat pemindaian berhasil dihapus dari database.'
+      });
+    } catch (e: any) {
+      setAlertState({
+        type: 'error',
+        title: 'Gagal Menghapus',
+        message: e?.message || 'Terjadi kesalahan saat membersihkan riwayat.'
+      });
     } finally {
       setIsClearing(false);
     }
@@ -406,7 +424,7 @@ export default function RiwayatPage() {
                         </p>
                         {rec.shelf_life_hours != null && (
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                            className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
                               rec.status === 'Busuk' || rec.freshness_score <= 1
                                 ? 'text-red-800 bg-red-50 border-red-200'
                                 : 'text-emerald-800 bg-emerald-50 border-emerald-200'
@@ -414,11 +432,11 @@ export default function RiwayatPage() {
                           >
                             {rec.status === 'Busuk' || rec.freshness_score <= 1
                               ? 'Sisa 0 Jam (Pilah)'
-                              : `Sisa ~${rec.shelf_life_hours} Jam`}
+                              : `Sisa ${rec.shelf_life_hours} Jam`}
                           </span>
                         )}
                         {rec.disease_detected && !rec.disease_detected.toLowerCase().includes('normal') && !rec.disease_detected.toLowerCase().includes('bebas') && (
-                          <span className="text-[10px] font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">
+                          <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
                             ⚠ {rec.disease_detected}
                           </span>
                         )}
@@ -440,7 +458,7 @@ export default function RiwayatPage() {
                           {rec.freshness_score > 5 ? '%' : '/5'}
                         </span>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5 whitespace-nowrap leading-none ${badge.badgeBg}`}>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1.5 whitespace-nowrap leading-none ${badge.badgeBg}`}>
                         {badge.label}
                       </span>
                     </Link>

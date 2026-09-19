@@ -57,7 +57,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               }`}
             >
               <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
-              <span className="text-[10px] font-semibold mt-0.5 tracking-tight">{tab.label}</span>
+              <span className="text-[11px] font-semibold mt-0.5 tracking-tight">{tab.label}</span>
             </Link>
           );
         })}
@@ -68,13 +68,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <button
           type="button"
           onClick={handleCenterClick}
-          className="w-13 h-13 rounded-full bg-[#2D7A38] hover:bg-[#23632D] text-white shadow-lg shadow-emerald-900/25 flex items-center justify-center border-4 border-white transition transform active:scale-95 cursor-pointer ring-1 ring-[#E2E8F0]"
+          className="w-14 h-14 rounded-full bg-[#2D7A38] hover:bg-[#23632D] text-white shadow-lg shadow-emerald-900/25 flex items-center justify-center border-4 border-white transition transform active:scale-95 cursor-pointer ring-1 ring-[#E2E8F0]"
           aria-label="Buka Kamera Pindai"
           title="Buka Kamera Langsung"
         >
           <Camera className="w-6 h-6 stroke-[2.2]" />
         </button>
-        <span className="text-[10px] font-bold text-[#166534] mt-0.5">Pindai</span>
+        <span className="text-[11px] font-bold text-[#166534] mt-0.5">Pindai</span>
       </div>
 
       {/* Tab Sisi Kanan (Laporan & Profil) */}
@@ -92,7 +92,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               }`}
             >
               <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
-              <span className="text-[10px] font-semibold mt-0.5 tracking-tight">{tab.label}</span>
+              <span className="text-[11px] font-semibold mt-0.5 tracking-tight">{tab.label}</span>
             </Link>
           );
         })}

@@ -249,32 +249,32 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
     status = 'Layu';
     badgeColor = 'yellow';
     calculatedScore = 2;
-    statusSummary = `Stres patologi (${diseaseDetected}) atau mendekati batas simpan (~${daysRemaining} hari). Ambil tindakan diskon jual cepat hari ini.`;
+    statusSummary = `Stres patologi (${diseaseDetected}) atau mendekati batas simpan (${daysRemaining} hari). Ambil tindakan diskon jual cepat hari ini.`;
   } else if (ripenessStage === 'Overripe (Lewat Matang)') {
     status = 'Terlalu Matang';
     badgeColor = 'yellow';
     calculatedScore = 3;
-    statusSummary = `Fase lewat matang optimal (Sisa ~${effectiveHours} jam). Aroma pektin sangat kuat, ideal dialihkan ke pengolahan selai UMKM.`;
+    statusSummary = `Fase lewat matang optimal (Sisa sekitar ${effectiveHours} jam). Aroma pektin sangat kuat, ideal dialihkan ke pengolahan selai UMKM.`;
   } else if (ripenessStage === 'Unripe (Mentah)') {
     status = 'Segar';
     badgeColor = 'green';
     calculatedScore = 5;
-    statusSummary = `Buah mentah / hijau (Sisa umur simpan ~${daysRemaining} hari, butuh ~${timeToMatureHours} jam menuju matang). Stok sangat tahan lama, simpan di ruang pemeraman.`;
+    statusSummary = `Buah mentah / hijau (Sisa umur simpan sekitar ${daysRemaining} hari, butuh sekitar ${timeToMatureHours} jam menuju matang). Stok sangat tahan lama, simpan di ruang pemeraman.`;
   } else if (ripenessStage === 'Semiripe (Setengah Matang)') {
     status = 'Segar';
     badgeColor = 'green';
     calculatedScore = 5;
-    statusSummary = `Buah setengah matang (Sisa umur simpan ~${daysRemaining} hari, butuh ~${timeToMatureHours} jam menuju matang). Aman disimpan untuk display esok hari.`;
+    statusSummary = `Buah setengah matang (Sisa umur simpan sekitar ${daysRemaining} hari, butuh sekitar ${timeToMatureHours} jam menuju matang). Aman disimpan untuk display esok hari.`;
   } else if (daysRemaining >= 3.0) {
     status = 'Segar';
     badgeColor = 'green';
     calculatedScore = 5;
-    statusSummary = `Kondisi prima (Sisa umur simpan ~${daysRemaining} hari). Stok aman untuk pajangan utama rak etalase harga penuh.`;
+    statusSummary = `Kondisi prima (Sisa umur simpan sekitar ${daysRemaining} hari). Stok aman untuk pajangan utama rak etalase harga penuh.`;
   } else {
     status = 'Segar';
     badgeColor = 'green';
     calculatedScore = 4;
-    statusSummary = `Matang optimal (Sisa umur simpan ~${effectiveHours} jam). Prioritaskan pajang di rak depan display hari ini.`;
+    statusSummary = `Matang optimal (Sisa umur simpan sekitar ${effectiveHours} jam). Prioritaskan pajang di rak depan display hari ini.`;
   }
 
   // 8. Rekomendasi Aksi Inventaris & Strategi Penjualan Cepat (Merchant Action)

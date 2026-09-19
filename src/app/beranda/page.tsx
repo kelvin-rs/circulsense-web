@@ -12,7 +12,7 @@ import { runSensorFusion } from '@/lib/sensor-fusion';
 import { saveScanRecord, requestCloudMlInference, supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { GasData, VisualData, FusionResult, UpcyclingRecommendation } from '@/types/circulsense';
-import { AlertCircle, CheckCircle, Info, X } from 'lucide-react';
+import { AutoAlert } from '@/components/AutoAlert';
 
 export default function BerandaPage() {
   const { user } = useAuth();
@@ -30,6 +30,22 @@ export default function BerandaPage() {
     title: string;
     message: string;
   } | null>(null);
+
+  // Periksa notifikasi login_success dari URL query
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('alert') === 'login_success') {
+        setSyncAlert({
+          type: 'success',
+          title: 'Berhasil Masuk',
+          message: 'Selamat datang kembali! Akun CirculSense Anda siap digunakan.'
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+  }, []);
 
   const handleTriggerCamera = () => {
     setSubView('pindai');
@@ -273,35 +289,14 @@ export default function BerandaPage() {
 
       <div className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-8 lg:px-12 py-6">
         {syncAlert && (
-          <div
-            className={`mb-5 p-4 rounded-2xl border flex items-start justify-between gap-3 text-xs sm:text-sm animate-in fade-in duration-200 shadow-xs ${
-              syncAlert.type === 'success'
-                ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
-                : syncAlert.type === 'warning'
-                ? 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]'
-                : syncAlert.type === 'error'
-                ? 'bg-[#FEE2E2] border-[#FECACA] text-[#991B1B]'
-                : 'bg-blue-50 border-blue-200 text-blue-800'
-            }`}
-          >
-            <div className="flex items-start space-x-2.5">
-              {syncAlert.type === 'success' && <CheckCircle className="w-5 h-5 shrink-0 text-[#16A34A] mt-0.5" />}
-              {syncAlert.type === 'warning' && <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />}
-              {syncAlert.type === 'error' && <AlertCircle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />}
-              {syncAlert.type === 'info' && <Info className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" />}
-              <div>
-                <div className="font-bold">{syncAlert.title}</div>
-                <p className="mt-0.5 opacity-90">{syncAlert.message}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSyncAlert(null)}
-              className="p-1 rounded-lg hover:bg-black/5 text-current opacity-70 hover:opacity-100 cursor-pointer"
-              title="Tutup Notifikasi"
-            >
-              <X className="w-4 h-4" />
-            </button>
+          <div className="mb-5">
+            <AutoAlert
+              type={syncAlert.type}
+              title={syncAlert.title}
+              message={syncAlert.message}
+              duration={4500}
+              onClose={() => setSyncAlert(null)}
+            />
           </div>
         )}
 

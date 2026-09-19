@@ -74,7 +74,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
       return {
         label: 'Mentah (Warna Hijau)',
         desc: timeToRipe && timeToRipe > 0
-          ? `Perlu sekitar ~${timeToRipe} jam di suhu ruang untuk merah optimal.`
+          ? `Perlu sekitar ${timeToRipe} jam di suhu ruang untuk merah optimal.`
           : 'Stok sangat awet, cocok disimpan lebih lama di tempat sejuk.'
       };
     }
@@ -82,7 +82,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
       return {
         label: 'Setengah Matang (Semburat Merah)',
         desc: timeToRipe && timeToRipe > 0
-          ? `Perlu sekitar ~${timeToRipe} jam menuju kematangan penuh.`
+          ? `Perlu sekitar ${timeToRipe} jam menuju kematangan penuh.`
           : 'Bagus untuk pengiriman jarak jauh atau pajangan bertahap.'
       };
     }
@@ -226,8 +226,8 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                     <span>Sisa Masa Segar Buah:</span>
                   </span>
                   {shelfLife.time_to_mature_hours != null && shelfLife.time_to_mature_hours > 0 && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      Menuju Matang: ~{shelfLife.time_to_mature_hours} Jam
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      Menuju Matang: ±{shelfLife.time_to_mature_hours} Jam
                     </span>
                   )}
                 </div>
@@ -241,13 +241,13 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed max-w-md">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-md">
                   {result.status_summary}
                 </p>
 
                 {/* Indikator Bar Masa Simpan */}
                 <div className="pt-3 border-t border-white/10 space-y-1.5">
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                  <div className="flex justify-between text-xs font-bold text-slate-300">
                     <span className="text-emerald-400">Tahan Lama (&gt; 3 Hari)</span>
                     <span className="text-amber-300">Siap Ritel (1-2 Hari)</span>
                     <span className="text-rose-400">Segera Habiskan (&lt; 24 Jam)</span>
@@ -272,13 +272,13 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               {/* Kematangan */}
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-[10px] font-bold text-slate-500 block uppercase">
+                <span className="text-xs font-bold text-slate-500 block uppercase tracking-wide">
                   Tingkat Kematangan:
                 </span>
                 <strong className="text-sm font-extrabold text-slate-900 mt-0.5 block">
                   {ripenessInfo.label}
                 </strong>
-                <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                <p className="text-xs text-slate-600 mt-1 leading-snug">
                   {ripenessInfo.desc}
                 </p>
               </div>
@@ -291,7 +291,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                     : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <span className="text-[10px] font-bold text-slate-500 block uppercase">
+                <span className="text-xs font-bold text-slate-500 block uppercase tracking-wide">
                   Kondisi Fisik Buah:
                 </span>
                 <div className="flex items-center space-x-1.5 mt-0.5">
@@ -308,7 +308,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                     {diseaseInfo.title}
                   </strong>
                 </div>
-                <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                <p className="text-xs text-slate-600 mt-1 leading-snug">
                   {diseaseInfo.desc}
                 </p>
               </div>
@@ -321,7 +321,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
               <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                 Pemeriksaan Kondisi Kotak Simpan
               </span>
-              <span className="text-[10px] text-emerald-700 bg-emerald-50 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-xs text-emerald-700 bg-emerald-50 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
                 Lingkungan Terpantau
               </span>
             </div>
@@ -433,21 +433,21 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 bg-white rounded-lg border border-slate-200">
-                  <span className="text-[10px] text-slate-500 block">Estimasi Modal Terselamatkan:</span>
+                  <span className="text-xs text-slate-500 block">Estimasi Modal Terselamatkan:</span>
                   <div className="text-base sm:text-lg font-black text-emerald-700 mt-0.5">
                     Rp {result.financial_savings_idr.toLocaleString('id-ID')}
                   </div>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     Berdasarkan {result.saved_weight_kg} kg buah
                   </span>
                 </div>
 
                 <div className="p-3 bg-white rounded-lg border border-slate-200">
-                  <span className="text-[10px] text-slate-500 block">Pencegahan Sampah Pangan:</span>
+                  <span className="text-xs text-slate-500 block">Pencegahan Sampah Pangan:</span>
                   <div className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
                     {result.saved_weight_kg} kg
                   </div>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     Mencegah pembusukan sia-sia
                   </span>
                 </div>

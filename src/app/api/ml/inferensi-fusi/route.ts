@@ -154,7 +154,6 @@ export async function POST(request: NextRequest) {
       deteksi_penyakit: fusionResult.shelf_life.disease_detected,
       tindakan_stok_pedagang: fusionResult.shelf_life.inventory_action,
       rekomendasi_harga: fusionResult.shelf_life.pricing_strategy,
-      status_validasi_kroma: fusionResult.shelf_life.color_validation.consistency_status,
 
       kondisi_visual: (defects && defects.length > 0) ? defects.join(', ') : 'Permukaan Normal',
       tindakan_diambil: fusionResult.shelf_life.inventory_action,

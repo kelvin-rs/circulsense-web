@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { MQTTStatus } from '@/lib/mqtt';
 import { useAuth } from '@/lib/auth-context';
 import { LogOut } from 'lucide-react';
+import { LogoutConfirmModal } from '@/components/LogoutConfirmModal';
 
 interface HeaderProps {
   mqttStatus: MQTTStatus;
@@ -16,6 +17,8 @@ export const Header: React.FC<HeaderProps> = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const navLinks = [
     { href: '/beranda', label: 'Beranda' },
@@ -24,9 +27,15 @@ export const Header: React.FC<HeaderProps> = () => {
     { href: '/profil', label: 'Profil' }
   ] as const;
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/masuk');
+  const handleConfirmSignOut = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      setIsLogoutModalOpen(false);
+      router.push('/masuk?alert=logout_success');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -76,7 +85,7 @@ export const Header: React.FC<HeaderProps> = () => {
             {user ? (
               <button
                 type="button"
-                onClick={handleSignOut}
+                onClick={() => setIsLogoutModalOpen(true)}
                 className="flex items-center space-x-1.5 text-xs sm:text-sm font-bold text-slate-500 hover:text-red-600 px-3 py-2 rounded-xl hover:bg-red-50 transition cursor-pointer"
                 title="Keluar Akun"
               >
@@ -102,6 +111,14 @@ export const Header: React.FC<HeaderProps> = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Konfirmasi Keluar Akun */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleConfirmSignOut}
+        isLoading={isLoggingOut}
+      />
     </header>
   );
 };

@@ -4,13 +4,15 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { AutoAlert } from '@/components/AutoAlert';
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/beranda';
   const emailParam = searchParams.get('email') || '';
   const verifiedBanner = searchParams.get('verified') === 'true';
+  const isLogoutSuccess = searchParams.get('alert') === 'logout_success';
 
   const { user, signIn, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState(emailParam);
@@ -19,6 +21,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showLogoutAlert, setShowLogoutAlert] = useState(isLogoutSuccess);
 
   // Jika sudah terdeteksi login, langsung alihkan ke beranda (mencegah stuck)
   useEffect(() => {
@@ -44,10 +47,11 @@ function LoginForm() {
       setLoading(false);
     } else {
       setSuccessMsg('Masuk berhasil! Mengalihkan ke Beranda...');
-      // Menggunakan navigasi browser penuh agar cookie autentikasi terkirim ke middleware & server components
+      const targetSep = redirectUrl.includes('?') ? '&' : '?';
+      const dest = `${redirectUrl}${targetSep}alert=login_success`;
       setTimeout(() => {
-        window.location.href = redirectUrl;
-      }, 350);
+        window.location.href = dest;
+      }, 400);
     }
   };
 
@@ -62,24 +66,43 @@ function LoginForm() {
         </p>
       </div>
 
+      {showLogoutAlert && (
+        <AutoAlert
+          type="info"
+          title="Berhasil Keluar"
+          message="Sesi akun Anda telah berakhir dengan aman. Silakan masuk kembali kapan saja."
+          duration={4500}
+          onClose={() => {
+            setShowLogoutAlert(false);
+            window.history.replaceState({}, '', '/masuk');
+          }}
+        />
+      )}
+
       {verifiedBanner && (
         <div className="p-3.5 bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] text-xs font-semibold rounded-xl flex items-center space-x-2 animate-in fade-in duration-150">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Email Anda terkonfirmasi! Silakan masukkan kata sandi untuk masuk.</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3.5 bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] text-xs font-semibold rounded-xl flex items-center space-x-2 animate-in fade-in duration-150">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
+        <AutoAlert
+          type="success"
+          title="Berhasil Masuk"
+          message={successMsg}
+          duration={3000}
+          onClose={() => setSuccessMsg('')}
+        />
       )}
 
       {errorMsg && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl animate-in fade-in duration-150">
-          {errorMsg}
-        </div>
+        <AutoAlert
+          type="error"
+          title="Gagal Masuk"
+          message={errorMsg}
+          duration={5000}
+          onClose={() => setErrorMsg('')}
+        />
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">

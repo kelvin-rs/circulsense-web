@@ -19,6 +19,7 @@ import {
   X,
   Sparkles
 } from 'lucide-react';
+import { LogoutConfirmModal } from '@/components/LogoutConfirmModal';
 
 export default function ProfilPage() {
   const router = useRouter();
@@ -27,8 +28,10 @@ export default function ProfilPage() {
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
 
-  // Modal Dialog for Security
+  // Modal Dialog for Security & Logout
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState<boolean>(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   // User States
   const fullName = profile?.nama_lengkap || user?.user_metadata?.nama_lengkap || user?.email?.split('@')[0] || 'Pengguna CirculSense';
@@ -57,9 +60,15 @@ export default function ProfilPage() {
     };
   }, []);
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/masuk');
+  const handleConfirmSignOut = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      setIsLogoutModalOpen(false);
+      router.push('/masuk?alert=logout_success');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -193,7 +202,7 @@ export default function ProfilPage() {
           {/* Keluar Akun */}
           <button
             type="button"
-            onClick={handleSignOut}
+            onClick={() => setIsLogoutModalOpen(true)}
             className="w-full flex items-center justify-between p-3.5 sm:p-4 rounded-xl hover:bg-red-50 transition cursor-pointer text-red-600 group text-left"
           >
             <div className="flex items-center space-x-3.5">
@@ -265,6 +274,14 @@ export default function ProfilPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Konfirmasi Keluar Akun */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleConfirmSignOut}
+        isLoading={isLoggingOut}
+      />
 
       <BottomNav />
     </main>
