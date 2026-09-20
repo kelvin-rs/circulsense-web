@@ -14,7 +14,9 @@ import {
   Thermometer,
   Palette,
   Droplets,
-  Clock
+  Clock,
+  Zap,
+  ZapOff
 } from 'lucide-react';
 import { GasData, VisualData } from '@/types/circulsense';
 
@@ -38,17 +40,56 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 
+  const [torchOn, setTorchOn] = useState<boolean>(false);
+  const [hasTorch, setHasTorch] = useState<boolean>(false);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerBoxRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraSectionRef = useRef<HTMLDivElement | null>(null);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          (track as any).applyConstraints({ advanced: [{ torch: false }] });
+        } catch {}
+        track.stop();
+      });
       streamRef.current = null;
     }
+    setTorchOn(false);
   }, []);
+
+  const toggleTorch = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      const nextTorch = !torchOn;
+      await (track as any).applyConstraints({
+        advanced: [{ torch: nextTorch }]
+      });
+      setTorchOn(nextTorch);
+    } catch (err) {
+      console.warn('Gagal mengubah status senter HP:', err);
+      setTorchOn(false);
+    }
+  };
+
+  const handleToggleCameraFacing = () => {
+    if (torchOn && streamRef.current) {
+      const track = streamRef.current.getVideoTracks()[0];
+      if (track) {
+        try {
+          (track as any).applyConstraints({ advanced: [{ torch: false }] });
+        } catch {}
+      }
+      setTorchOn(false);
+    }
+    setCameraFacing((prev) => (prev === 'environment' ? 'user' : 'environment'));
+  };
 
   const startCamera = useCallback(async () => {
     try {
@@ -67,6 +108,16 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+      }
+      // Deteksi fitur senter kamera
+      try {
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          const caps = (track.getCapabilities && track.getCapabilities()) as any;
+          setHasTorch(Boolean(caps && 'torch' in caps) || cameraFacing === 'environment');
+        }
+      } catch {
+        setHasTorch(cameraFacing === 'environment');
       }
     } catch (err) {
       console.warn('Kamera fisik tidak dapat diakses:', err);
@@ -146,28 +197,61 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       const vW = video.videoWidth > 0 ? video.videoWidth : 1280;
       const vH = video.videoHeight > 0 ? video.videoHeight : 720;
 
-      // Presisi rasio aspek asli sensor kamera agar citra tidak gepeng / terdistorsi
-      const maxDim = 1200;
-      let targetW = vW;
-      let targetH = vH;
+      let cropX = 0;
+      let cropY = 0;
+      let cropW = vW;
+      let cropH = vH;
 
-      if (targetW > maxDim || targetH > maxDim) {
-        if (targetW > targetH) {
-          targetH = Math.round((vH * maxDim) / vW);
-          targetW = maxDim;
-        } else {
-          targetW = Math.round((vW * maxDim) / vH);
-          targetH = maxDim;
-        }
+      // Potong persis sesuai kotak panduan pemindai (bounding box) di layar
+      if (scannerBoxRef.current) {
+        const videoRect = video.getBoundingClientRect();
+        const boxRect = scannerBoxRef.current.getBoundingClientRect();
+
+        // object-cover menskalakan video secara seragam mengisi kontainer layar
+        const scale = Math.max(videoRect.width / vW, videoRect.height / vH);
+        const displayedW = vW * scale;
+        const displayedH = vH * scale;
+
+        // Offset titik awal video di dalam videoRect karena pemusatan object-cover
+        const offsetX = (videoRect.width - displayedW) / 2;
+        const offsetY = (videoRect.height - displayedH) / 2;
+
+        // Posisi kotak pemindai relatif terhadap citra video yang ditampilkan
+        const boxLeftInDisplayed = boxRect.left - (videoRect.left + offsetX);
+        const boxTopInDisplayed = boxRect.top - (videoRect.top + offsetY);
+
+        // Konversi ke koordinat piksel asli sensor video kamera
+        cropX = boxLeftInDisplayed / scale;
+        cropY = boxTopInDisplayed / scale;
+        cropW = boxRect.width / scale;
+        cropH = boxRect.height / scale;
+
+        // Pastikan batas potong aman di dalam dimensi fisik citra video
+        cropX = Math.max(0, Math.min(cropX, vW - 50));
+        cropY = Math.max(0, Math.min(cropY, vH - 50));
+        cropW = Math.min(cropW, vW - cropX);
+        cropH = Math.min(cropH, vH - cropY);
+      } else {
+        // Fallback jika ref tidak tersedia: crop tengah persegi (1:1)
+        const size = Math.min(vW, vH);
+        cropX = (vW - size) / 2;
+        cropY = (vH - size) / 2;
+        cropW = size;
+        cropH = size;
       }
 
+      // Target kanvas persegi beresolusi tinggi (maks 1024px)
+      const targetSize = Math.min(1024, Math.round(Math.max(cropW, cropH)));
       const canvas = document.createElement('canvas');
-      canvas.width = targetW;
-      canvas.height = targetH;
+      canvas.width = targetSize;
+      canvas.height = targetSize;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(video, 0, 0, targetW, targetH);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        // Hanya menggambar area persis di dalam kotak pemindai (bounding box)
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetSize, targetSize);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
         setCapturedImage(dataUrl);
         setDetectedConfidence(0.96);
         setUseLiveCamera(false);
@@ -259,15 +343,33 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setCameraFacing((prev) => (prev === 'environment' ? 'user' : 'environment'))}
-              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/20 flex items-center justify-center transition active:scale-95 cursor-pointer"
-              title="Putar Kamera"
-              aria-label="Putar Kamera"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            <div className="flex items-center space-x-2">
+              {/* Tombol Senter HP */}
+              <button
+                type="button"
+                onClick={toggleTorch}
+                className={`w-10 h-10 rounded-full backdrop-blur-md border flex items-center justify-center transition active:scale-95 cursor-pointer ${
+                  torchOn
+                    ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-lg shadow-amber-400/50 scale-105'
+                    : 'bg-black/40 text-white border-white/20 hover:bg-black/60'
+                }`}
+                title={torchOn ? 'Matikan Senter HP' : 'Nyalakan Senter HP'}
+                aria-label={torchOn ? 'Matikan Senter HP' : 'Nyalakan Senter HP'}
+              >
+                {torchOn ? <Zap className="w-5 h-5 fill-current text-slate-950" /> : <ZapOff className="w-4 h-4 text-white/80" />}
+              </button>
+
+              {/* Tombol Putar Kamera */}
+              <button
+                type="button"
+                onClick={handleToggleCameraFacing}
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/20 flex items-center justify-center transition active:scale-95 cursor-pointer hover:bg-black/60"
+                title="Putar Kamera"
+                aria-label="Putar Kamera"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Camera Video Stream */}
@@ -282,14 +384,17 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
 
             {/* Targeted Scanner Frame Grid */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6 sm:p-12">
-              <div className="relative w-full max-w-sm aspect-square border-2 border-dashed border-white/60 rounded-2xl flex items-center justify-center">
+              <div
+                ref={scannerBoxRef}
+                className="relative w-full max-w-sm aspect-square border-2 border-dashed border-white/70 rounded-2xl flex items-center justify-center shadow-2xl"
+              >
                 {/* Corner Markers */}
                 <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#16A34A] rounded-tl-xl" />
                 <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#16A34A] rounded-tr-xl" />
                 <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#16A34A] rounded-bl-xl" />
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#16A34A] rounded-br-xl" />
 
-                <div className="text-center px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full text-[11px] sm:text-xs text-white/90 font-medium tracking-wide">
+                <div className="text-center px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-[11px] sm:text-xs text-white/95 font-medium tracking-wide border border-white/10">
                   Posisikan buah stroberi di dalam kotak
                 </div>
               </div>
@@ -409,21 +514,13 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
             </div>
 
             {/* Viewport Box */}
-            <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center shadow-sm">
+            <div className="relative w-full aspect-square max-w-sm sm:max-w-md mx-auto rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center shadow-sm">
               {capturedImage ? (
                 <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                  {/* Ambient backdrop */}
                   <img
                     src={capturedImage}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-110 pointer-events-none select-none"
-                  />
-                  {/* Crisp uncropped un-squished foreground image */}
-                  <img
-                    src={capturedImage}
-                    alt="Hasil Tangkapan Citra Stroberi"
-                    className="relative z-1 max-w-full max-h-full object-contain drop-shadow-md"
+                    alt="Hasil Tangkapan Citra Stroberi Sesuai Kotak Pemindai"
+                    className="w-full h-full object-cover"
                   />
                   <button
                     type="button"
