@@ -37,6 +37,7 @@ export interface ShelfLifeDetail {
   hours_remaining: number;       // Sisa jam simpan menuju pembusukan (time-to-spoil)
   days_remaining: number;        // Sisa hari simpan menuju pembusukan (time-to-spoil)
   time_to_mature_hours?: number; // Sisa jam menuju kondisi matang optimal (time-to-ripe)
+  time_to_mature_days?: number;  // Sisa hari menuju kondisi matang optimal (time-to-ripe)
   time_to_ripe_hours?: number;   // Alias time-to-ripe (jam)
   time_to_ripe_days?: number;    // Alias time-to-ripe (hari)
   time_to_spoil_hours?: number;  // Alias time-to-spoil (jam)
@@ -48,6 +49,9 @@ export interface ShelfLifeDetail {
   urgency_level: 'Aman' | 'Perhatian' | 'Kritis' | 'Kedaluwarsa';
   environmental_stress_factor: number; // Pengali stres suhu/RH dari DHT22 (1.0 = normal, >1.5 = laju pembusukan dipercepat)
   color_validation: ColorValidationDetail;
+  action_recommendation?: string;
+  spoilage_status?: string;
+  ripeness_status?: string;
 }
 
 export interface GasData {
@@ -131,6 +135,21 @@ export interface FusionResult {
   is_live_ml?: boolean;
   ml_server_url?: string;
   detection_bbox?: number[];
+  bounding_boxes?: any[];
+  grade_label?: string;
+  grade_confidence?: number;
+  grade_probs?: Record<string, number>;
+  edibility?: string;
+  physical_desc?: string;
+  disease_label?: string;
+  disease_desc?: string;
+  disease_confidence?: number;
+  red_ratio_pct?: number;
+  fruits_detected?: number;
+  results?: any[];
+  active_fruit_index?: number;
+  annotated_image_path?: string;
+  sensor_analysis?: any;
 }
 
 export interface ScanRecord {
@@ -162,11 +181,24 @@ export interface ScanRecord {
   // Kolom Prediksi Umur Simpan Pedagang
   shelf_life_hours?: number;
   shelf_life_days?: number;
+  time_to_mature_days?: number;
+  time_to_mature_hours?: number;
   ripeness_stage?: string;
   disease_detected?: string;
   inventory_action?: string;
   pricing_strategy?: string;
   color_consistency?: string;
+  // Multi-Fruit Inspection Data
+  fruits_detected?: number;
+  fruits_list?: any[];
+  grade_label?: string;
+  edibility?: string;
+  physical_desc?: string;
+  disease_label?: string;
+  disease_desc?: string;
+  red_ratio_pct?: number;
+  detection_bbox?: number[];
+  bounding_boxes?: any[];
 }
 
 export interface ImpactSummary {

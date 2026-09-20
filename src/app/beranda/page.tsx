@@ -153,47 +153,104 @@ export default function BerandaPage() {
 
     const mlBaseUrl = (process.env.NEXT_PUBLIC_ML_SERVICE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
-    // 1. Coba hubungi REST API langsung (sangat cepat untuk http://localhost:3000 atau Tunnel HTTPS)
+    // 1. Panggil Model dengan CARA A (FormData /api/predict ke http://localhost:8000)
     try {
-      const mlRes = await fetch(`${mlBaseUrl}/predict/fusion`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image_url: activeVisualData.image_url || '',
-          temperature: Number(gasData.temperature ?? 27.0),
-          humidity: Number(gasData.humidity ?? 65.0),
-          ch4_ppm: Number(gasData.ch4_ppm ?? 0.0),
-          raw_mq4: gasData.raw_mq4,
-          aqi_ppm: Number(gasData.aqi_ppm ?? 0.0),
-          raw_mq135: gasData.raw_mq135,
-          saved_weight_kg: Number(activeVisualData.batch_weight_kg ?? 0.5)
-        }),
-        signal: AbortSignal.timeout(2000)
-      });
+      let mlRes: Response | null = null;
 
-      if (mlRes.ok) {
+      // OPSI CARA A: Gunakan FormData jika ada foto
+      try {
+        const formData = new FormData();
+        if (activeVisualData.image_url.startsWith('data:')) {
+          const blobRes = await fetch(activeVisualData.image_url);
+          const blob = await blobRes.blob();
+          formData.append('image', blob, 'strawberry_capture.jpg');
+        } else {
+          formData.append('image', activeVisualData.image_url);
+        }
+
+        formData.append('air_temperature', String(gasData.temperature ?? 20.0));
+        formData.append('air_humidity', String(gasData.humidity ?? 60.0));
+        const mq4Val = gasData.raw_mq4 ?? (gasData.ch4_ppm ? gasData.ch4_ppm * 25 : 75.0);
+        const mq135Val = gasData.raw_mq135 ?? (gasData.aqi_ppm ? gasData.aqi_ppm * 28 : 680.0);
+        formData.append('mq4', String(mq4Val));
+        formData.append('mq135', String(mq135Val));
+
+        mlRes = await fetch(`${mlBaseUrl}/api/predict`, {
+          method: 'POST',
+          body: formData,
+          signal: AbortSignal.timeout(12000)
+        });
+      } catch (formErr) {
+        // Fallback ke JSON jika FormData fetch terhambat
+        mlRes = await fetch(`${mlBaseUrl}/api/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: activeVisualData.image_url || '',
+            image_url: activeVisualData.image_url || '',
+            temperature: Number(gasData.temperature ?? 20.0),
+            humidity: Number(gasData.humidity ?? 60.0),
+            mq4: gasData.raw_mq4 ?? (gasData.ch4_ppm ? gasData.ch4_ppm * 25 : 75.0),
+            mq135: gasData.raw_mq135 ?? (gasData.aqi_ppm ? gasData.aqi_ppm * 28 : 680.0),
+            saved_weight_kg: Number(activeVisualData.batch_weight_kg ?? 0.5)
+          }),
+          signal: AbortSignal.timeout(12000)
+        });
+      }
+
+      if (mlRes && mlRes.ok) {
         const mlJson = await mlRes.json();
-        if (mlJson.success && mlJson.data) {
+        const md = mlJson.data || mlJson;
+        if (md.grade || md.grade_label) {
           usedLiveMl = true;
-          const md = mlJson.data;
           result.is_live_ml = true;
-          result.freshness_score = md.freshness_score;
-          result.status = md.status;
-          result.status_badge_color = md.badge_color;
-          result.status_summary = md.summary || md.action_recommendation || result.status_summary;
-          result.shelf_life.hours_remaining = md.shelf_life_hours;
-          result.shelf_life.days_remaining = md.shelf_life_days;
-          result.shelf_life.time_to_mature_hours = md.time_to_mature_hours ?? md.time_to_ripe_hours ?? 0;
-          result.shelf_life.time_to_ripe_hours = md.time_to_mature_hours ?? md.time_to_ripe_hours ?? 0;
-          result.shelf_life.time_to_ripe_days = md.time_to_mature_days ?? md.time_to_ripe_days ?? 0;
-          result.shelf_life.time_to_spoil_hours = md.time_to_spoil_hours ?? md.shelf_life_hours;
-          result.shelf_life.time_to_spoil_days = md.time_to_spoil_days ?? md.shelf_life_days;
-          result.shelf_life.ripeness_stage = md.ripeness_stage;
-          result.shelf_life.disease_detected = md.disease_detected;
-          result.shelf_life.inventory_action = md.inventory_action;
-          result.shelf_life.pricing_strategy = md.pricing_strategy;
-          result.shelf_life.urgency_level = md.urgency_level || (md.status === 'Busuk' ? 'Kedaluwarsa' : (md.status === 'Terlalu Matang' ? 'Perhatian' : (md.status === 'Layu' ? 'Kritis' : 'Aman')));
+          result.freshness_score = Number(md.freshness_score ?? 0.80);
+          result.status = md.status || (md.grade === 'Fullripe' ? 'Segar' : (md.grade === 'Rotten' ? 'Busuk' : (md.grade === 'Overripe' ? 'Terlalu Matang' : 'Layu')));
+          result.status_badge_color = md.badge_color || (result.status === 'Segar' ? 'green' : (result.status === 'Busuk' ? 'red' : 'yellow'));
+          result.status_summary = md.summary || `${md.grade_label}. ${md.edibility || ''}`;
+
+          // Rich 5-Class ML fields matching test_manual.py
+          result.grade_label = md.grade_label || 'MATANG SEMPURNA (Fullripe / Grade A Super)';
+          result.grade_confidence = md.grade_confidence ?? 0.95;
+          result.grade_probs = md.grade_probs ?? {};
+          result.edibility = md.edibility || 'KONDISI PRIMA SIAP MAKAN (Kualitas Rasa, Manis, & Aroma Puncak)';
+          result.physical_desc = md.physical_desc || 'Warna merah merata, aroma manis harum, tekstur juicy empuk, siap dinikmati langsung atau dipajang di etalase.';
+          result.disease_label = md.disease_label || md.disease_detected || 'SEHAT & SEGAR (Bebas Penyakit)';
+          result.disease_desc = md.disease_desc || 'Kondisi fisik segar, tidak ada tanda-tanda jamur atau bercak patogen.';
+          result.disease_confidence = md.disease_confidence ?? 0.85;
+          result.red_ratio_pct = md.red_ratio_pct ?? (md.chroma ? Math.round(md.chroma.red_ratio * 100) : 72.8);
+          result.fruits_detected = md.fruits_detected ?? (md.results ? md.results.length : 1);
+          result.results = md.results ?? [];
+          result.active_fruit_index = 0;
+          result.annotated_image_path = md.annotated_image_path;
+          result.sensor_analysis = md.sensor_analysis;
+
+          // Shelf Life Kinetics
+          result.shelf_life.hours_remaining = md.shelf_life_hours ?? Math.round((md.days_to_spoil ?? 3.1) * 24);
+          result.shelf_life.days_remaining = md.shelf_life_days ?? md.days_to_spoil ?? 3.1;
+          result.shelf_life.time_to_mature_hours = md.time_to_mature_hours ?? 0;
+          result.shelf_life.time_to_ripe_hours = md.time_to_mature_hours ?? 0;
+          result.shelf_life.time_to_ripe_days = md.time_to_mature_days ?? md.days_to_mature ?? 0;
+          result.shelf_life.time_to_spoil_hours = md.time_to_spoil_hours ?? result.shelf_life.hours_remaining;
+          result.shelf_life.time_to_spoil_days = md.time_to_spoil_days ?? result.shelf_life.days_remaining;
+          result.shelf_life.ripeness_stage = md.grade_label as any;
+          result.shelf_life.disease_detected = md.disease_label as any;
+          result.shelf_life.inventory_action = md.inventory_action || (md.grade === 'Fullripe' ? 'Pajang di Etalase Depan Segera' : 'Diskon / Jual Cepat Hari Ini');
+          result.shelf_life.pricing_strategy = md.pricing_strategy || 'Harga Normal';
+          result.shelf_life.urgency_level = md.urgency_level || (md.grade === 'Rotten' ? 'Kedaluwarsa' : (md.grade === 'Overripe' ? 'Perhatian' : 'Aman'));
           result.recommendation.title = md.inventory_action || result.recommendation.title;
+
+          result.bounding_boxes = md.bounding_boxes
+            ? md.bounding_boxes.map((b: any) => [b.x, b.y, b.w, b.h])
+            : (md.results ? md.results.map((r: any) => r.bbox_norm || [0.5, 0.5, 0.5, 0.5]) : []);
+
+          if (md.results && md.results.length > 0) {
+            result.results = md.results.map((r: any, idx: number) => ({
+              ...r,
+              bbox_norm: r.bbox_norm || (md.bounding_boxes?.[idx] ? [md.bounding_boxes[idx].x, md.bounding_boxes[idx].y, md.bounding_boxes[idx].w, md.bounding_boxes[idx].h] : [0.5, 0.5, 0.5, 0.5])
+            }));
+          }
+
           if (md.bounding_boxes && md.bounding_boxes.length > 0) {
             result.detection_bbox = [
               md.bounding_boxes[0].x,
@@ -201,25 +258,23 @@ export default function BerandaPage() {
               md.bounding_boxes[0].w,
               md.bounding_boxes[0].h
             ];
-          }
-          if (md.impact) {
-            result.prevented_ch4_g = md.impact.prevented_ch4_g;
-            result.prevented_co2e_g = md.impact.prevented_co2e_g;
-            result.financial_savings_idr = md.impact.financial_savings_idr;
+          } else if (result.results && result.results.length > 0 && result.results[0].bbox_norm) {
+            result.detection_bbox = result.results[0].bbox_norm;
           }
 
           setSyncAlert({
             type: 'success',
-            title: 'Hasil Terverifikasi AI (Lokal)',
-            message: `Pemeriksaan visual kamera dan sensor fisik selesai diproses (${md.metrics?.inference_ms ?? 35}ms).`
+            title: 'Hasil Terverifikasi ML Strawberry',
+            message: `Inferensi 3-Model selesai: ${md.grade_label} (${(md.grade_confidence * 100).toFixed(1)}%).`
           });
         }
       }
     } catch {
-      // Localhost REST offline atau diblokir mixed-content pada Vercel HTTPS
+      // Localhost direct REST offline atau diblokir HTTPS mixed-content pada Vercel
     }
 
-    // 2. Jika direct REST tidak dapat diakses (misal pada website Vercel), kirim ke Cloud Queue Supabase!
+    // 2. Jika direct REST tidak dapat diakses (misal pada website Vercel https://circulsense-web.vercel.app),
+    // kirim ke Cloud Queue Supabase agar diproses worker lokal secara otomatis!
     if (!usedLiveMl) {
       try {
         const cloudRes = await requestCloudMlInference(activeVisualData, gasData, 12000);
@@ -231,6 +286,20 @@ export default function BerandaPage() {
           result.status = cloudRes.status as any;
           result.status_badge_color = cloudRes.badge_color as any;
           result.status_summary = cloudRes.summary || result.status_summary;
+
+          // Rich 5-Class ML fields from Cloud Worker
+          result.grade_label = (cloudRes as any).grade_label || cloudRes.ripeness_stage || 'MATANG SEMPURNA (Fullripe / Grade A Super)';
+          result.grade_confidence = (cloudRes as any).grade_confidence ?? 0.95;
+          result.edibility = (cloudRes as any).edibility || 'KONDISI PRIMA SIAP MAKAN (Kualitas Rasa, Manis, & Aroma Puncak)';
+          result.physical_desc = (cloudRes as any).physical_desc || 'Warna merah merata, aroma manis harum, tekstur juicy empuk, siap dinikmati langsung atau dipajang di etalase.';
+          result.disease_label = (cloudRes as any).disease_label || cloudRes.disease_detected || 'SEHAT & SEGAR (Bebas Penyakit)';
+          result.disease_desc = (cloudRes as any).disease_desc || 'Kondisi fisik segar, tidak ada tanda-tanda jamur atau bercak patogen.';
+          result.disease_confidence = (cloudRes as any).disease_confidence ?? 0.85;
+          result.red_ratio_pct = (cloudRes as any).red_ratio_pct ?? 72.8;
+          result.fruits_detected = (cloudRes as any).fruits_detected ?? 1;
+          result.results = (cloudRes as any).results ?? [];
+          result.active_fruit_index = 0;
+
           result.shelf_life.hours_remaining = cloudRes.shelf_life_hours;
           result.shelf_life.days_remaining = cloudRes.shelf_life_days;
           result.shelf_life.time_to_mature_hours = cloudRes.time_to_ripe_hours ?? 0;
@@ -238,12 +307,13 @@ export default function BerandaPage() {
           result.shelf_life.time_to_ripe_days = cloudRes.time_to_ripe_days ?? 0;
           result.shelf_life.time_to_spoil_hours = cloudRes.time_to_spoil_hours ?? cloudRes.shelf_life_hours;
           result.shelf_life.time_to_spoil_days = cloudRes.time_to_spoil_days ?? cloudRes.shelf_life_days;
-          result.shelf_life.ripeness_stage = cloudRes.ripeness_stage as any;
-          result.shelf_life.disease_detected = cloudRes.disease_detected as any;
+          result.shelf_life.ripeness_stage = result.grade_label as any;
+          result.shelf_life.disease_detected = result.disease_label as any;
           result.shelf_life.inventory_action = cloudRes.inventory_action as any;
           result.shelf_life.pricing_strategy = cloudRes.pricing_strategy as any;
           result.shelf_life.urgency_level = (cloudRes.urgency_level || (cloudRes.status === 'Busuk' ? 'Kedaluwarsa' : (cloudRes.status === 'Terlalu Matang' ? 'Perhatian' : (cloudRes.status === 'Layu' ? 'Kritis' : 'Aman')))) as any;
           result.recommendation.title = cloudRes.inventory_action || result.recommendation.title;
+
           if (cloudRes.bounding_boxes && cloudRes.bounding_boxes.length > 0) {
             result.detection_bbox = [
               cloudRes.bounding_boxes[0].x,
@@ -260,8 +330,8 @@ export default function BerandaPage() {
 
           setSyncAlert({
             type: 'success',
-            title: 'Hasil Terverifikasi AI (Cloud Bridge)',
-            message: `Pemeriksaan visual kamera dan sensor fisik berhasil diproses dari cloud (${cloudRes.metrics?.inference_ms ?? 45}ms).`
+            title: 'Hasil Terverifikasi ML Strawberry (Cloud Bridge)',
+            message: `Pemeriksaan visual kamera dan sensor fisik diproses dari server model lokal (${(cloudRes as any).metrics?.inference_ms ?? 45}ms).`
           });
         }
       } catch (err) {
@@ -277,14 +347,11 @@ export default function BerandaPage() {
       });
     }
 
-    // Jika diproses via Cloud Queue, record sudah disimpan di riwayat_pemindaian oleh worker.
-    // Jika via REST atau fallback lokal, simpan manual ke Supabase
-    if (!isCloudQueue) {
-      try {
-        await saveScanRecord(result);
-      } catch (saveErr) {
-        console.warn('Peringatan penyimpanan ke database:', saveErr);
-      }
+    // Simpan hasil pemindaian ke riwayat (database & local storage)
+    try {
+      await saveScanRecord(result, user?.id);
+    } catch (saveErr) {
+      console.warn('Peringatan penyimpanan ke database:', saveErr);
     }
 
     setCurrentFusionResult(result);

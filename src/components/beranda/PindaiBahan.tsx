@@ -304,11 +304,6 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
 
       {/* 1. HERO SECTION AT TOP - MERCHANT / BUSINESS PROPOSITION */}
       <section className="space-y-4 pt-1 pb-2 max-w-4xl">
-        <div className="inline-flex items-center space-x-1.5 bg-[#DCFCE7] text-[#166534] text-[11px] sm:text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-[#BBF7D0]">
-          <Clock className="w-3.5 h-3.5 text-[#166534]" />
-          <span>Sistem Peringatan Dini Umur Simpan Buah Stroberi & Manajemen Stok Pedagang</span>
-        </div>
-
         <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-[1.2]">
           Prediksi Umur Simpan Stroberi & <span className="text-[#16A34A]">Efisiensi Stok Pedagang</span>
         </h1>
@@ -364,7 +359,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       {/* 2. CAMERA CAPTURE & ANALYSIS SECTION */}
       <section id="camera-viewport" ref={cameraSectionRef} className="space-y-4 pt-4 border-t border-[#F1F5F9]">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
+          <h2 className="text-lg sm:text-2xl font-bold text-[#0F172A] tracking-tight">
             Pemindaian Citra Sampel Buah Stroberi
           </h2>
           <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">

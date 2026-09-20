@@ -2,20 +2,44 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
-import { fetchScanRecordById } from '@/lib/supabase';
+import { fetchScanRecordById, deleteScanRecord, normalizeFreshnessPct } from '@/lib/supabase';
+import { formatShelfLifeHuman, formatFreshnessScoreHuman } from '@/lib/display-format';
 import { ScanRecord, GasData } from '@/types/circulsense';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import {
   ArrowLeft,
   Calendar,
   CookingPot,
-  Layers
+  Layers,
+  Trash2,
+  Award,
+  ShieldCheck,
+  Clock,
+  Thermometer,
+  Wind,
+  Sparkles,
+  Leaf
 } from 'lucide-react';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
+
+// Helper pembersih format teks
+function cleanLabel(text?: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\[.*?\]/g, '')
+    .replace(/\(.*?\)/g, (match) => {
+      if (match.includes('Grade') || match.includes('Hari') || match.includes('Super')) return match;
+      return '';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export default function RiwayatDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
 
@@ -23,6 +47,9 @@ export default function RiwayatDetailPage() {
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
   const [loading, setLoading] = useState(true);
+  const [selectedFruitIdx, setSelectedFruitIdx] = useState<number>(0);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const loadDetail = useCallback(async () => {
     if (!id) return;
@@ -57,6 +84,19 @@ export default function RiwayatDetailPage() {
     };
   }, [loadDetail]);
 
+  const handleDelete = async () => {
+    if (!id) return;
+    setIsDeleting(true);
+    try {
+      await deleteScanRecord(id);
+      router.push('/riwayat');
+    } catch (e) {
+      console.error('Gagal menghapus riwayat:', e);
+      setIsDeleting(false);
+      setIsConfirmDeleteOpen(false);
+    }
+  };
+
   const formatDate = (isoString?: string) => {
     if (!isoString) return '-';
     try {
@@ -78,7 +118,7 @@ export default function RiwayatDetailPage() {
         <Header mqttStatus={mqttStatus} battery={gasData.battery} />
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400 space-y-3">
           <div className="w-8 h-8 border-3 border-[#2D7A38] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-semibold text-[#64748B]">Memuat detail data dari database...</span>
+          <span className="text-xs font-semibold text-[#64748B]">Memuat detail riwayat...</span>
         </div>
         <BottomNav />
       </main>
@@ -112,258 +152,449 @@ export default function RiwayatDetailPage() {
     );
   }
 
-  const scorePercent = record.freshness_score > 5 ? record.freshness_score : Math.round(record.freshness_score * 20);
-  const isFresh = scorePercent >= 70;
-  const isDecaying = scorePercent >= 40 && scorePercent < 70;
-  const isRotten = record.status === 'Busuk' || scorePercent < 40 || (record.disease_detected?.toLowerCase().includes('gray') ?? false);
+  // Multi-fruit handling
+  const fruitList: any[] = (record.fruits_list && record.fruits_list.length > 0) ? record.fruits_list : [];
+  const totalFruits = record.fruits_detected || (fruitList.length > 0 ? fruitList.length : 1);
+  const activeFruit = fruitList.length > 0 ? fruitList[selectedFruitIdx] : null;
+
+  // Aktifkan data buah spesifik atau fallback record utama
+  const activeGrade = activeFruit?.grade_label || record.ripeness_stage || record.visual_condition || 'Matang Sempurna (Grade A Super)';
+  const activeEdibility = activeFruit?.edibility || record.edibility || 'Kondisi prima siap makan';
+  const activeDisease = activeFruit?.disease_label || record.disease_detected || 'Sehat & Bebas Penyakit';
+
+  const shelf = formatShelfLifeHuman({
+    daysSpoil: activeFruit?.days_to_spoil != null ? Number(activeFruit.days_to_spoil) : record.shelf_life_days,
+    hoursSpoil: activeFruit?.shelf_life_hours != null ? Number(activeFruit.shelf_life_hours) : record.shelf_life_hours,
+    daysMature: activeFruit?.days_to_mature != null ? Number(activeFruit.days_to_mature) : record.time_to_mature_days,
+    hoursMature: activeFruit?.time_to_mature_hours != null ? Number(activeFruit.time_to_mature_hours) : record.time_to_mature_hours,
+    gradeLabel: activeGrade,
+    status: record.status
+  });
+
+  const scoreFmt = formatFreshnessScoreHuman(
+    activeFruit?.freshness_score != null ? activeFruit.freshness_score : record.freshness_score,
+    record.status,
+    activeGrade
+  );
+
+  const isRotten = shelf.hours <= 0 || activeGrade.toLowerCase().includes('busuk') || activeGrade.toLowerCase().includes('rotten') || record.status === 'Busuk';
+  const isFresh = scoreFmt.percentScore >= 65 && !isRotten;
+
+  // Bounding box buah aktif
+  const activeBbox = activeFruit?.bbox_norm || record.detection_bbox || record.bounding_boxes?.[0];
 
   return (
     <main className="min-h-screen bg-white text-[#1E293B] flex flex-col selection:bg-[#16A34A] selection:text-white">
-      <Header
-        mqttStatus={mqttStatus}
-        battery={gasData.battery}
-      />
+      <Header mqttStatus={mqttStatus} battery={gasData.battery} />
 
-      <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 pb-32 md:pb-16 space-y-6">
-        {/* 1. TOP BACK BAR */}
-        <div className="flex items-center space-x-3 pb-3 border-b border-slate-100">
-          <Link
-            href="/riwayat"
-            className="w-10 h-10 rounded-xl bg-slate-100 text-[#334155] flex items-center justify-center hover:bg-slate-200 transition cursor-pointer"
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-5 pb-32 md:pb-16 space-y-4">
+        {/* 1. TOP BAR */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center space-x-3 min-w-0">
+            <Link
+              href="/riwayat"
+              className="w-9 h-9 rounded-xl bg-slate-100 text-[#334155] flex items-center justify-center hover:bg-slate-200 transition cursor-pointer shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-extrabold text-[#0F172A] tracking-tight truncate">
+                Detail Pemeriksaan Buah
+              </h1>
+              <p className="text-xs text-slate-500 font-medium flex items-center space-x-1.5 truncate">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>{formatDate(record.created_at)}</span>
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsConfirmDeleteOpen(true)}
+            className="p-2 sm:px-3 sm:py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition cursor-pointer flex items-center space-x-1.5 text-xs font-bold shrink-0"
+            title="Hapus Catatan Ini"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F172A] tracking-tight">
-              Detail Riwayat Analisis
-            </h1>
-            <p className="text-xs text-slate-400 font-medium flex items-center space-x-1.5 mt-0.5">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{formatDate(record.created_at)}</span>
-            </p>
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Hapus Riwayat</span>
+          </button>
+        </div>
+
+        {/* 2. SUMMARY HEADER CARD: 1 PEMINDAIAN (DAPAT MEMUAT BEBERAPA BUAH) */}
+        {totalFruits > 1 && (
+          <div className="bg-slate-900 text-white p-3.5 sm:p-4 rounded-2xl shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold flex items-center space-x-1.5 text-emerald-300">
+                <Layers className="w-4 h-4" />
+                <span>{totalFruits} Buah Stroberi Terdeteksi Sekaligus dalam 1 Sampel</span>
+              </span>
+            </div>
+
+            {/* TAB SELECTOR BUAH */}
+            <div className="flex flex-wrap gap-1.5">
+              {fruitList.map((f: any, idx: number) => {
+                const isSelected = selectedFruitIdx === idx;
+                const fGrade = cleanLabel(f.grade_label || f.grade || 'Matang');
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedFruitIdx(idx)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 border ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white border-emerald-400 shadow-xs'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>🍓 Buah #{f.fruit_index || idx + 1}</span>
+                    <span className="text-[10px] opacity-80">({fGrade})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 3. CITRA BUAH & BOUNDING BOX */}
+        <div className="relative w-full aspect-[16/9] sm:aspect-[16/8] rounded-2xl overflow-hidden bg-slate-900 shadow-xs border border-slate-200">
+          {record.image_url ? (
+            <img
+              src={record.image_url}
+              alt={record.item_name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-500">
+              <Layers className="w-10 h-10" />
+            </div>
+          )}
+
+          {/* Render bounding box untuk setiap buah terdeteksi */}
+          {fruitList && fruitList.length > 0 ? (
+            fruitList.map((f: any, idx: number) => {
+              const rawBbox = f.bbox_norm || f.bbox || (f.x !== undefined ? [f.x, f.y, f.w, f.h] : null);
+              if (!rawBbox || !Array.isArray(rawBbox) || rawBbox.length !== 4) return null;
+              const isSelected = selectedFruitIdx === idx;
+              const left = Math.max(0, (rawBbox[0] - rawBbox[2] / 2) * 100);
+              const top = Math.max(0, (rawBbox[1] - rawBbox[3] / 2) * 100);
+              const width = Math.min(100 - left, rawBbox[2] * 100);
+              const height = Math.min(100 - top, rawBbox[3] * 100);
+
+              return (
+                <div
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFruitIdx(idx);
+                  }}
+                  title={`🍓 Stroberi #${idx + 1}`}
+                  className={`absolute rounded transition-all duration-200 cursor-pointer ${
+                    isSelected
+                      ? 'border-2 border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-300 z-10'
+                      : 'border-2 border-dashed border-amber-300/80 bg-amber-400/15 hover:bg-amber-400/30 z-0'
+                  }`}
+                  style={{
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    width: `${width}%`,
+                    height: `${height}%`,
+                  }}
+                >
+                  <span
+                    className={`absolute -top-3.5 -left-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded shadow-xs ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white border border-emerald-300'
+                        : 'bg-slate-900/80 text-amber-300'
+                    }`}
+                  >
+                    #{idx + 1}
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            activeBbox && Array.isArray(activeBbox) && activeBbox.length === 4 && (
+              <div
+                className="absolute border-2 border-emerald-400 bg-emerald-500/20 rounded pointer-events-none transition-all duration-300"
+                style={{
+                  left: `${Math.max(0, (activeBbox[0] - activeBbox[2] / 2) * 100)}%`,
+                  top: `${Math.max(0, (activeBbox[1] - activeBbox[3] / 2) * 100)}%`,
+                  width: `${Math.min(100, activeBbox[2] * 100)}%`,
+                  height: `${Math.min(100, activeBbox[3] * 100)}%`,
+                }}
+              />
+            )
+          )}
+
+          <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-xs text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+            {record.item_name} {totalFruits > 1 ? `(Buah #${selectedFruitIdx + 1} dari ${totalFruits})` : ''}
+          </div>
+
+          <div className="absolute bottom-2.5 right-2.5 bg-black/70 backdrop-blur-xs text-emerald-300 text-xs font-bold px-2.5 py-1 rounded-lg">
+            {totalFruits} Buah Teridentifikasi
           </div>
         </div>
 
-        {/* 2. PHOTO & FRESHNESS EVALUATION */}
-        <div className="space-y-4">
-          <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden bg-slate-900 shadow-sm">
-            {record.image_url ? (
-              <img
-                src={record.image_url}
-                alt={record.item_name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-500">
-                <Layers className="w-12 h-12" />
-              </div>
-            )}
-            <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-full">
-              {record.item_name} ({record.category})
-            </div>
-            <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full">
-              YOLO Edge AI
-            </div>
-          </div>
-
-          {/* Freshness Score Summary */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">
-                Evaluasi Fusi Sensor
+        {/* 4. STATUS & KUALITAS BUAH AKTIF */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Kartu Mutu & Kesegaran */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                <Award className="w-4 h-4 text-emerald-600" />
+                <span>Kualitas & Mutu Buah</span>
               </span>
-              <div className="flex items-center space-x-2">
-                <span
-                  className={`text-2xl sm:text-3xl font-black ${
-                    isFresh ? 'text-[#16A34A]' : isDecaying ? 'text-amber-600' : 'text-red-600'
-                  }`}
-                >
-                  {record.freshness_score > 5 ? `${record.freshness_score}%` : `${record.freshness_score}/5`}
-                </span>
-                <span
-                  className={`text-xs font-extrabold px-2.5 py-1 rounded-full ${
-                    isFresh
-                      ? 'bg-[#DCFCE7] text-[#166534]'
-                      : isDecaying
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {record.status}
-                </span>
-              </div>
-            </div>
-
-            <div className="text-right max-w-[50%]">
-              <span className="text-xs text-slate-400 block font-medium">Kondisi Visual</span>
-              <strong className="text-xs sm:text-sm text-[#0F172A] font-bold block truncate">
-                {record.visual_condition && !record.visual_condition.startsWith('{')
-                  ? record.visual_condition
-                  : 'Segar & Bebas Cacat'}
-              </strong>
-            </div>
-          </div>
-
-          {/* Prediksi Umur Simpan & Keputusan Inventaris Pedagang */}
-          <div
-            className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 transition ${
-              isRotten
-                ? 'bg-red-50/80 border-red-200/90 text-red-900'
-                : 'bg-emerald-50/70 border-emerald-200/80 text-emerald-900'
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span
-                className={`text-xs font-extrabold uppercase tracking-wider ${
-                  isRotten ? 'text-red-800' : 'text-emerald-800'
-                }`}
-              >
-                Prediksi Umur Simpan & Aksi Stok Pedagang
-              </span>
-              <span
-                className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                  isRotten
-                    ? 'bg-red-100 text-red-800 border-red-200'
-                    : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                }`}
-              >
-                {isRotten
-                  ? 'Sisa 0 Jam (Segera Dipilah)'
-                  : `Sisa ${record.shelf_life_hours ?? 48} Jam (${record.shelf_life_days ?? 2.0} Hari)`}
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                isFresh ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+              }`}>
+                {cleanLabel(activeGrade)}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-xs text-slate-500 font-medium block">Tindakan Inventaris:</span>
-                <strong className="text-slate-900 font-bold text-xs mt-0.5 block">
-                  {record.inventory_action || (isRotten ? 'Pilah ke Komposter Organik' : 'Pajang di Etalase Depan Segera')}
-                </strong>
-              </div>
-
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-xs text-slate-500 font-medium block">Deteksi Patogen & Cacat:</span>
-                <div className="flex items-center space-x-1.5 mt-0.5">
-                  {record.disease_detected && !record.disease_detected.toLowerCase().includes('normal') && !record.disease_detected.toLowerCase().includes('bebas') ? (
-                    <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 truncate">
-                      ⚠ {record.disease_detected}
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 truncate">
-                      ✓ {record.disease_detected || 'Normal (Bebas Jamur)'}
-                    </span>
-                  )}
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Skor Kesegaran ML:</span>
+                <div className="flex items-baseline space-x-1">
+                  <strong className={`font-black ${scoreFmt.scoreColor}`}>
+                    {scoreFmt.decimalScore}
+                  </strong>
+                  <span className="text-[10px] text-slate-400 font-bold">/ 1.0</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">({scoreFmt.percentScore}%)</span>
                 </div>
               </div>
-
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-xs text-slate-500 font-medium block">Strategi Harga & Kematangan:</span>
-                <strong className="text-slate-800 font-bold text-xs mt-0.5 block truncate">
-                  {record.pricing_strategy || (isRotten ? 'Bahan Olahan' : 'Harga Normal')} • {record.ripeness_stage || 'Fullripe'}
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Kelayakan Konsumsi:</span>
+                <strong className="text-slate-800 font-bold text-right max-w-[65%] truncate">
+                  {cleanLabel(activeEdibility)}
                 </strong>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. MULTIMODAL SENSOR TELEMETRY */}
-        <div className="space-y-2.5">
-          <h2 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
-            Telemetri Sensor Terpadu Saat Pemindaian
-          </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            {/* MQ-4 */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 block">MQ-4 (Metana)</span>
-              <div className="text-lg font-black text-[#0F172A]">
-                {record.gas_ch4_ppm ? Number(record.gas_ch4_ppm).toFixed(2) : '0.00'}{' '}
-                <span className="text-[10px] font-mono text-slate-400 font-normal">ppm</span>
-              </div>
-            </div>
-
-            {/* MQ-135 */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 block">MQ-135 (Kualitas)</span>
-              <div className="text-lg font-black text-[#0F172A]">
-                {record.gas_aqi_ppm || 0}{' '}
-                <span className="text-[10px] font-mono text-slate-400 font-normal">AQI</span>
-              </div>
-            </div>
-
-            {/* DHT22 */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 block">DHT22 (Suhu/RH)</span>
-              <div className="text-sm font-black text-[#0F172A]">
-                {record.temperature ? Number(record.temperature).toFixed(1) : '27.0'}°C
-                <span className="text-[10px] text-slate-400 ml-1">
-                  {record.humidity ? Number(record.humidity).toFixed(0) : '65'}%
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Kondisi Fisik:</span>
+                <span className="text-slate-700 font-medium text-right max-w-[65%] truncate">
+                  {cleanLabel(activeFruit?.desc || record.physical_desc || 'Bebas cacat fisik')}
                 </span>
               </div>
             </div>
+          </div>
 
-            {/* TCS34725 */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 block">TCS34725 (Warna)</span>
-              <div className="flex items-center space-x-1.5 pt-0.5">
-                <div
-                  className="w-4 h-4 rounded-full border border-black/20 shrink-0"
-                  style={{ backgroundColor: record.color_hex || '#E44034' }}
-                />
-                <span className="font-mono text-xs font-bold text-[#0F172A] truncate">
-                  {record.color_hex || '#E44034'}
+          {/* Kartu Masa Simpan & Kesehatan */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>Masa Simpan & Kesehatan</span>
+              </span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${shelf.badgeClass}`}>
+                {shelf.badgeText}
+              </span>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">{shelf.timeUnit === 'jam' ? 'Batas Waktu Simpan:' : 'Daya Tahan Simpan:'}</span>
+                <strong className="text-slate-900 font-bold">{shelf.primaryText}</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Status Penyakit:</span>
+                <strong className={`font-bold ${isRotten ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  {cleanLabel(activeDisease)}
+                </strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Saran Tindakan:</span>
+                <span className="text-slate-700 font-medium text-right max-w-[65%] truncate">
+                  {record.inventory_action || 'Pajang di Etalase Utama'}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 4. RECOMMENDED UPCYCLING ACTION */}
-        <div className="p-5 rounded-2xl bg-[#DCFCE7]/60 border border-[#BBF7D0] space-y-2">
-          <div className="flex items-center space-x-2 text-[#166534] font-bold text-xs uppercase tracking-wider">
+        {/* 5. TABEL RANGKUMAN SELURUH BUAH JIKA MULTI-BUAH */}
+        {fruitList.length > 1 && (
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                Rangkuman Seluruh Buah ({fruitList.length} Buah Terdeteksi)
+              </span>
+              <span className="text-[11px] text-slate-500">Klik baris untuk menyorot buah</span>
+            </div>
+
+            <div className="divide-y divide-slate-200/80 rounded-xl overflow-hidden border border-slate-200 bg-white">
+              {fruitList.map((f: any, idx: number) => {
+                const isCurrent = selectedFruitIdx === idx;
+                const fGrade = cleanLabel(f.grade_label || f.grade || 'Matang');
+                const fDis = cleanLabel(f.disease_label || 'Sehat Bebas Jamur');
+                const fShelf = formatShelfLifeHuman({
+                  daysSpoil: f.days_to_spoil,
+                  hoursSpoil: f.shelf_life_hours,
+                  daysMature: f.days_to_mature,
+                  hoursMature: f.time_to_mature_hours,
+                  gradeLabel: fGrade,
+                  status: record.status
+                });
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedFruitIdx(idx)}
+                    className={`p-3 text-xs flex items-center justify-between gap-2 cursor-pointer transition ${
+                      isCurrent ? 'bg-emerald-50/90 font-bold text-emerald-900' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                        isCurrent ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        #{idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-extrabold text-slate-900 truncate">
+                          {fGrade}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">
+                          {fDis}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className={`text-xs font-extrabold block ${fShelf.hours <= 0 ? 'text-red-700' : (fShelf.isUrgent ? 'text-amber-700' : 'text-emerald-700')}`}>
+                        {fShelf.badgeText}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">
+                        {fShelf.stageLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 6. TELEMETRI SENSOR SAAT PEMINDAIAN */}
+        {(() => {
+          const hasTemp = record.temperature != null && Number(record.temperature) > 0;
+          const hasHum = record.humidity != null && Number(record.humidity) > 0;
+          const hasCh4 = record.gas_ch4_ppm != null && Number(record.gas_ch4_ppm) > 0;
+          const hasAqi = record.gas_aqi_ppm != null && Number(record.gas_aqi_ppm) > 0;
+          const hasAnyIot = hasTemp || hasHum || hasCh4 || hasAqi;
+
+          return (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  Kondisi Ruangan & Sensor Saat Pindai
+                </span>
+                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                  hasAnyIot
+                    ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                    : 'text-slate-500 bg-slate-100 border-slate-200'
+                }`}>
+                  {hasAnyIot ? '✓ Sensor IoT Terhubung (Data Real)' : 'Data IoT Belum Terdeteksi'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
+                  <span className="text-[11px] font-semibold text-slate-500 block flex items-center gap-1">
+                    <Thermometer className="w-3 h-3 text-blue-600" /> Suhu Ruang
+                  </span>
+                  <strong className="text-sm font-extrabold text-slate-900">
+                    {hasTemp ? `${Number(record.temperature).toFixed(1)} °C` : '-'}
+                  </strong>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
+                  <span className="text-[11px] font-semibold text-slate-500 block flex items-center gap-1">
+                    <Wind className="w-3 h-3 text-cyan-600" /> Kelembaban
+                  </span>
+                  <strong className="text-sm font-extrabold text-slate-900">
+                    {hasHum ? `${Number(record.humidity).toFixed(0)} %` : '-'}
+                  </strong>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
+                  <span className="text-[11px] font-semibold text-slate-500 block flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-600" /> Gas Metana
+                  </span>
+                  <strong className="text-sm font-extrabold text-slate-900">
+                    {hasCh4 ? `${Number(record.gas_ch4_ppm).toFixed(2)} ppm` : '-'}
+                  </strong>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-0.5">
+                  <span className="text-[11px] font-semibold text-slate-500 block flex items-center gap-1">
+                    <Leaf className="w-3 h-3 text-amber-600" /> Kualitas Udara
+                  </span>
+                  <strong className="text-sm font-extrabold text-slate-900">
+                    {hasAqi ? `${Math.round(Number(record.gas_aqi_ppm))} AQI` : '-'}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 7. SARAN UPCYCLING & RESEP */}
+        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2">
+          <div className="flex items-center space-x-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
             <CookingPot className="w-4 h-4" />
-            <span>Rekomendasi Aksi Upcycling Pangan</span>
+            <span>Pilihan Olahan Bila Stok Belum Habis</span>
           </div>
 
-          <h3 className="text-base sm:text-lg font-extrabold text-[#0F172A]">
+          <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
             {record.recommendation_title || record.action_taken || 'Olahan Pangan Ramah Lingkungan'}
           </h3>
 
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-            Metode pengolahan optimal berdasarkan evaluasi fusi sensor untuk mempertahankan nutrisi dan mencegah emisi gas rumah kaca di TPA.
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Metode pengolahan terbaik untuk menjaga nilai nutrisi buah dan mencegah pembusukan di tempat sampah.
           </p>
         </div>
+      </div>
 
-        {/* 5. ENVIRONMENTAL & FINANCIAL IMPACT */}
-        <div className="space-y-2.5">
-          <h2 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
-            Dampak Lingkungan & Finansial
-          </h2>
-
-          <div className="grid grid-cols-3 gap-2.5 text-center text-xs">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-bold uppercase block">Pangan</span>
-              <strong className="text-sm font-black text-[#0F172A]">
-                {Number(record.saved_weight_kg) || 0} kg
-              </strong>
+      {/* MODAL KONFIRMASI HAPUS */}
+      {isConfirmDeleteOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl border border-slate-100 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
             </div>
 
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-bold uppercase block">CH₄ Dicegah</span>
-              <strong className="text-sm font-black text-[#166534]">
-                {Number(record.prevented_ch4_g) || 0} g
-              </strong>
+            <div className="text-center space-y-1">
+              <h3 className="font-extrabold text-[#0F172A] text-base">Hapus Catatan Ini?</h3>
+              <p className="text-xs text-slate-500">
+                Seluruh riwayat pemeriksaan sampel ini (termasuk {totalFruits} buah terdeteksi) akan dihapus dari database.
+              </p>
             </div>
 
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-bold uppercase block">Nilai Hemat</span>
-              <strong className="text-sm font-black text-[#2D7A38]">
-                Rp {(Number(record.financial_savings_idr) || 0).toLocaleString('id-ID')}
-              </strong>
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmDeleteOpen(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-xs"
+              >
+                Ya, Hapus
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* LOADING OVERLAY */}
+      <LoadingOverlay
+        isOpen={isDeleting}
+        title="Menghapus Catatan Pemindaian..."
+        message="Sedang menghapus data dari database..."
+        variant="deleting"
+      />
 
       <BottomNav />
     </main>

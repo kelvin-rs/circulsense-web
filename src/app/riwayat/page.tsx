@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
-import { fetchScanRecords, deleteScanRecord, clearAllScanRecords } from '@/lib/supabase';
+import { fetchScanRecords, deleteScanRecord, clearAllScanRecords, normalizeFreshnessPct } from '@/lib/supabase';
+import { formatShelfLifeHuman, formatFreshnessScoreHuman } from '@/lib/display-format';
 import { ScanRecord, GasData } from '@/types/circulsense';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
 import {
@@ -19,6 +20,7 @@ import {
   Layers
 } from 'lucide-react';
 import { AutoAlert, AlertType } from '@/components/AutoAlert';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 export default function RiwayatPage() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
@@ -35,6 +37,7 @@ export default function RiwayatPage() {
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const [itemToDelete, setItemToDelete] = useState<ScanRecord | null>(null);
+  const [isDeletingSingle, setIsDeletingSingle] = useState<boolean>(false);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState<boolean>(false);
   const [isClearing, setIsClearing] = useState<boolean>(false);
 
@@ -71,7 +74,6 @@ export default function RiwayatPage() {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-
     return () => {
       unsubMqtt();
       unsubStatus();
@@ -80,14 +82,25 @@ export default function RiwayatPage() {
   }, [loadData]);
 
   const handleDeleteItem = async (id: string) => {
-    await deleteScanRecord(id);
-    setRecords((prev) => prev.filter((r) => r.id !== id));
-    setItemToDelete(null);
-    setAlertState({
-      type: 'info',
-      title: 'Sampel Dihapus',
-      message: 'Catatan pemindaian berhasil dihapus dari riwayat.'
-    });
+    setIsDeletingSingle(true);
+    try {
+      await deleteScanRecord(id);
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      setItemToDelete(null);
+      setAlertState({
+        type: 'info',
+        title: 'Sampel Dihapus',
+        message: 'Catatan pemindaian berhasil dihapus dari database dan riwayat.'
+      });
+    } catch (e: any) {
+      setAlertState({
+        type: 'error',
+        title: 'Gagal Menghapus',
+        message: e?.message || 'Terjadi kesalahan saat menghapus catatan.'
+      });
+    } finally {
+      setIsDeletingSingle(false);
+    }
   };
 
   const handleClearAllRecords = async () => {
@@ -146,7 +159,7 @@ export default function RiwayatPage() {
   });
 
   const getScoreBadge = (score: number, statusText: string) => {
-    const pct = score > 5 ? score : score * 20;
+    const pct = normalizeFreshnessPct(score);
     if (statusText === 'Busuk' || pct < 40) {
       return {
         scoreColor: 'text-red-600',
@@ -154,14 +167,14 @@ export default function RiwayatPage() {
         label: statusText || 'Busuk'
       };
     }
-    if (statusText === 'Terlalu Matang' || (pct >= 40 && pct < 60)) {
+    if (statusText === 'Terlalu Matang' || (pct >= 40 && pct < 65)) {
       return {
         scoreColor: 'text-orange-600',
         badgeBg: 'bg-orange-100 text-orange-800',
-        label: statusText || 'Terlalu Matang'
+        label: statusText || 'Lewat Matang'
       };
     }
-    if (statusText === 'Layu' || (pct >= 60 && pct < 75)) {
+    if (statusText === 'Layu' || (pct >= 65 && pct < 75)) {
       return {
         scoreColor: 'text-amber-600',
         badgeBg: 'bg-amber-100 text-amber-800',
@@ -391,7 +404,21 @@ export default function RiwayatPage() {
             </div>
           ) : (
             filteredRecords.map((rec) => {
-              const badge = getScoreBadge(rec.freshness_score, rec.status);
+              const shelf = formatShelfLifeHuman({
+                daysSpoil: rec.shelf_life_days,
+                hoursSpoil: rec.shelf_life_hours,
+                daysMature: rec.time_to_mature_days,
+                hoursMature: rec.time_to_mature_hours,
+                gradeLabel: rec.grade_label || rec.ripeness_stage,
+                status: rec.status
+              });
+
+              const scoreFmt = formatFreshnessScoreHuman(
+                rec.freshness_score,
+                rec.status,
+                rec.grade_label || rec.ripeness_stage
+              );
+
               return (
                 <div
                   key={rec.id}
@@ -422,17 +449,14 @@ export default function RiwayatPage() {
                         <p className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
                           {formatDate(rec.created_at)}
                         </p>
-                        {rec.shelf_life_hours != null && (
-                          <span
-                            className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
-                              rec.status === 'Busuk' || rec.freshness_score <= 1
-                                ? 'text-red-800 bg-red-50 border-red-200'
-                                : 'text-emerald-800 bg-emerald-50 border-emerald-200'
-                            }`}
-                          >
-                            {rec.status === 'Busuk' || rec.freshness_score <= 1
-                              ? 'Sisa 0 Jam (Pilah)'
-                              : `Sisa ${rec.shelf_life_hours} Jam`}
+                        <span
+                          className={`text-xs font-bold px-2 py-0.5 rounded-md border ${shelf.badgeClass}`}
+                        >
+                          {shelf.badgeText}
+                        </span>
+                        {rec.fruits_detected && rec.fruits_detected > 1 && (
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md text-emerald-800 bg-emerald-50 border border-emerald-200">
+                            🍓 {rec.fruits_detected} Buah Sekaligus
                           </span>
                         )}
                         {rec.disease_detected && !rec.disease_detected.toLowerCase().includes('normal') && !rec.disease_detected.toLowerCase().includes('bebas') && (
@@ -448,18 +472,18 @@ export default function RiwayatPage() {
                   <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
                     <Link
                       href={`/riwayat/${rec.id}`}
-                      className="flex flex-col items-center justify-center text-center cursor-pointer"
+                      className="flex flex-col items-center justify-center text-center cursor-pointer min-w-[54px]"
                     >
                       <div className="flex items-baseline space-x-0.5">
-                        <span className={`text-base sm:text-lg font-black leading-none ${badge.scoreColor}`}>
-                          {rec.freshness_score}
+                        <span className={`text-base sm:text-lg font-black leading-none ${scoreFmt.scoreColor}`}>
+                          {scoreFmt.decimalScore}
                         </span>
-                        <span className="text-xs font-bold text-slate-400 leading-none">
-                          {rec.freshness_score > 5 ? '%' : '/5'}
+                        <span className="text-[10px] font-bold text-slate-400 leading-none">
+                          / 1.0
                         </span>
                       </div>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1.5 whitespace-nowrap leading-none ${badge.badgeBg}`}>
-                        {badge.label}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5 whitespace-nowrap leading-none border ${scoreFmt.badgeBg}`}>
+                        {scoreFmt.badgeLabel}
                       </span>
                     </Link>
 
@@ -558,6 +582,21 @@ export default function RiwayatPage() {
           </div>
         </div>
       )}
+
+      {/* LOADING OVERLAYS SAAT PROSES HAPUS */}
+      <LoadingOverlay
+        isOpen={isDeletingSingle}
+        title="Menghapus Catatan Pemindaian..."
+        message="Sedang memperbarui database dan memproses penghapusan sampel."
+        variant="deleting"
+      />
+
+      <LoadingOverlay
+        isOpen={isClearing}
+        title="Membersihkan Seluruh Riwayat..."
+        message="Sedang menghapus semua data pemindaian dari database."
+        variant="deleting"
+      />
 
       <BottomNav />
     </main>

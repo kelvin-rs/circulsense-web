@@ -115,16 +115,24 @@ class MQTTService {
               aqi_ppm: Number(data.aqi_ppm ?? data.aqi ?? 0),
               raw_mq4: Number(data.raw_mq4 ?? 0),
               raw_mq135: Number(data.raw_mq135 ?? 0),
-              // DHT22 Telemetry
-              temperature: Number(data.temp ?? data.temperature ?? data.dht_temp ?? 27.2),
-              humidity: Number(data.hum ?? data.humidity ?? data.dht_hum ?? 68.4),
+              // DHT22 Telemetry (Hanya gunakan nilai real jika dikirim oleh ESP32)
+              temperature: (data.temp != null && !isNaN(Number(data.temp))) 
+                ? Number(data.temp) 
+                : ((data.temperature != null && !isNaN(Number(data.temperature))) 
+                    ? Number(data.temperature) 
+                    : ((data.dht_temp != null && !isNaN(Number(data.dht_temp))) ? Number(data.dht_temp) : (this.currentGasData.temperature ?? null))),
+              humidity: (data.hum != null && !isNaN(Number(data.hum))) 
+                ? Number(data.hum) 
+                : ((data.humidity != null && !isNaN(Number(data.humidity))) 
+                    ? Number(data.humidity) 
+                    : ((data.dht_hum != null && !isNaN(Number(data.dht_hum))) ? Number(data.dht_hum) : (this.currentGasData.humidity ?? null))),
               // TCS34725 Telemetry
               color_r: clamp(r),
               color_g: clamp(g),
               color_b: clamp(b),
-              color_c: Number(data.c ?? data.color_c ?? data.clear ?? 340),
-              color_lux: Number(data.lux ?? data.color_lux ?? 385),
-              color_temp: Number(data.cct ?? data.color_temp ?? data.temp_k ?? 3450),
+              color_c: Number(data.c ?? data.color_c ?? data.clear ?? 0),
+              color_lux: Number(data.lux ?? data.color_lux ?? 0),
+              color_temp: Number(data.cct ?? data.color_temp ?? data.temp_k ?? 0),
               color_hex: hex,
               color_name: colorName,
               battery: Number(data.battery ?? 100),
