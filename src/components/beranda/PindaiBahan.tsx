@@ -55,8 +55,13 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
+      const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: cameraFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: {
+          facingMode: cameraFacing,
+          width: { ideal: isPortrait ? 1080 : 1920 },
+          height: { ideal: isPortrait ? 1920 : 1080 }
+        },
         audio: false
       });
       streamRef.current = stream;
