@@ -70,7 +70,19 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
   // Penerjemah fase kematangan ramah manusia
   const getRipenessInfo = () => {
     const stage = (shelfLife.ripeness_stage || '').toLowerCase();
+    const isRotten = (result.status || '').toLowerCase().includes('busuk') ||
+                     stage.includes('rotten') ||
+                     stage.includes('busuk') ||
+                     (shelfLife.disease_detected || '').toLowerCase().includes('gray') ||
+                     (shelfLife.disease_detected || '').toLowerCase().includes('mold');
     const timeToRipe = shelfLife.time_to_mature_hours;
+
+    if (isRotten) {
+      return {
+        label: 'Busuk / Rusak (Afkir)',
+        desc: 'Buah telah membusuk dan rusak. Tidak layak konsumsi dan harus segera dipisahkan agar tidak menulari buah lain.'
+      };
+    }
 
     if (stage.includes('unripe') || stage.includes('mentah')) {
       return {
@@ -250,9 +262,9 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                 {/* Indikator Bar Masa Simpan */}
                 <div className="pt-3 border-t border-white/10 space-y-1.5">
                   <div className="flex justify-between text-xs font-bold text-slate-300">
-                    <span className="text-emerald-400">Tahan Lama (&gt; 3 Hari)</span>
-                    <span className="text-amber-300">Siap Ritel (1-2 Hari)</span>
                     <span className="text-rose-400">Segera Habiskan (&lt; 24 Jam)</span>
+                    <span className="text-amber-300">Siap Ritel (1-2 Hari)</span>
+                    <span className="text-emerald-400">Tahan Lama (&gt; 3 Hari)</span>
                   </div>
                   <div className="relative w-full h-2 rounded-full bg-slate-700 overflow-hidden">
                     <div
@@ -400,31 +412,47 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
             </div>
 
             {/* Kotak Aksi Utama */}
-            <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-300 space-y-2.5">
-              <div className="flex items-center space-x-2 text-emerald-900">
-                <Store className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span className="text-xs font-bold uppercase tracking-wider">Tindakan Stok Disarankan:</span>
-              </div>
+            {(() => {
+              const isRotten = (result.status || '').toLowerCase().includes('busuk') ||
+                               (shelfLife.disease_detected || '').toLowerCase().includes('gray') ||
+                               (shelfLife.disease_detected || '').toLowerCase().includes('mold') ||
+                               hoursLeft <= 0;
+              return (
+                <div className={`p-4 rounded-xl space-y-2.5 border ${
+                  isRotten
+                    ? 'bg-rose-50/80 border-rose-300 text-rose-950'
+                    : 'bg-emerald-50/70 border-emerald-300'
+                }`}>
+                  <div className={`flex items-center space-x-2 ${isRotten ? 'text-rose-900' : 'text-emerald-900'}`}>
+                    <Store className={`w-4 h-4 shrink-0 ${isRotten ? 'text-rose-700' : 'text-emerald-700'}`} />
+                    <span className="text-xs font-bold uppercase tracking-wider">Tindakan Stok Disarankan:</span>
+                  </div>
 
-              <div className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-                {shelfLife.inventory_action}
-              </div>
+                  <div className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                    {shelfLife.inventory_action}
+                  </div>
 
-              <div className="flex items-center space-x-2 pt-0.5">
-                <Tag className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span className="text-xs font-bold text-slate-800">
-                  Strategi Harga: <span className="text-emerald-800 underline font-extrabold">{shelfLife.pricing_strategy}</span>
-                </span>
-              </div>
+                  <div className="flex items-center space-x-2 pt-0.5">
+                    <Tag className={`w-3.5 h-3.5 shrink-0 ${isRotten ? 'text-rose-700' : 'text-emerald-700'}`} />
+                    <span className="text-xs font-bold text-slate-800">
+                      Strategi Harga: <span className={`underline font-extrabold ${isRotten ? 'text-rose-800' : 'text-emerald-800'}`}>{shelfLife.pricing_strategy}</span>
+                    </span>
+                  </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed pt-2 border-t border-emerald-200">
-                {hoursLeft >= 48
-                  ? 'Kondisi buah sangat baik. Tempatkan pada etalase utama atau simpan di pendingin untuk mendapatkan harga jual optimal.'
-                  : hoursLeft >= 18
-                  ? 'Masa simpan terbatas (1-2 hari). Utamakan penjualan hari ini dengan diskon menarik agar stok lekas laku tanpa kerugian.'
-                  : 'Buah mulai sangat matang. Segera jual borongan dengan harga khusus atau alihkan untuk diolah menjadi selai/jus segar.'}
-              </p>
-            </div>
+                  <p className={`text-xs leading-relaxed pt-2 border-t ${
+                    isRotten ? 'text-rose-800 border-rose-200' : 'text-slate-600 border-emerald-200'
+                  }`}>
+                    {isRotten
+                      ? 'Buah telah rusak atau membusuk. Segera pisahkan dan buang ke komposter/bio-fermentasi agar spora jamur tidak menulari stok buah segar lainnya.'
+                      : hoursLeft >= 48
+                      ? 'Kondisi buah sangat baik. Tempatkan pada etalase utama atau simpan di pendingin untuk mendapatkan harga jual optimal.'
+                      : hoursLeft >= 18
+                      ? 'Masa simpan terbatas (1-2 hari). Utamakan penjualan hari ini dengan diskon menarik agar stok lekas laku tanpa kerugian.'
+                      : 'Buah mulai sangat matang. Segera jual borongan dengan harga khusus atau alihkan untuk diolah menjadi selai/jus segar.'}
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* Estimasi Penyelamatan Modal & Pangan (Disatukan Rapi) */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
