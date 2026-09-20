@@ -190,13 +190,39 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4">
             {/* Foto & Identitas Buah */}
             <div className="flex items-center space-x-3.5">
-              <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                 <img
                   src={result.image_url}
                   alt={result.item_name}
                   className="w-full h-full object-cover"
                 />
-                {result.detection_bbox && result.detection_bbox.length === 4 && (
+                {/* Render SEMUA Bounding Box Buah yang Terdeteksi */}
+                {result.detection_bboxes && result.detection_bboxes.length > 0 ? (
+                  result.detection_bboxes.map((box, idx) => {
+                    const isDanger = box.status === 'danger' || (box.label || '').toLowerCase().includes('busuk') || (box.label || '').toLowerCase().includes('mold') || (box.label || '').toLowerCase().includes('spot');
+                    const isWarning = box.status === 'warning' || (box.label || '').toLowerCase().includes('overripe') || (box.label || '').toLowerCase().includes('matang');
+                    const borderColor = isDanger ? 'border-rose-500 bg-rose-500/25' : isWarning ? 'border-amber-400 bg-amber-400/20' : 'border-emerald-400 bg-emerald-500/20';
+                    const badgeBg = isDanger ? 'bg-rose-600' : isWarning ? 'bg-amber-600' : 'bg-emerald-600';
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`absolute border-2 rounded pointer-events-none transition-all ${borderColor}`}
+                        style={{
+                          left: `${Math.max(0, (box.x - box.w / 2) * 100)}%`,
+                          top: `${Math.max(0, (box.y - box.h / 2) * 100)}%`,
+                          width: `${Math.min(100, box.w * 100)}%`,
+                          height: `${Math.min(100, box.h * 100)}%`,
+                        }}
+                        title={`${box.label || 'Stroberi'} (${Math.round((box.confidence ?? 0.9) * 100)}%)`}
+                      >
+                        <span className={`absolute -top-3.5 left-0 text-[8px] font-black text-white px-1 rounded-sm leading-tight shadow-xs ${badgeBg}`}>
+                          {box.label ? (box.label.length > 14 ? box.label.slice(0, 12) + '..' : box.label) : `#${idx + 1}`}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : result.detection_bbox && result.detection_bbox.length === 4 ? (
                   <div
                     className="absolute border-2 border-emerald-400 bg-emerald-500/20 rounded pointer-events-none"
                     style={{
@@ -207,7 +233,7 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                     }}
                     title="Deteksi Visual Cerdas"
                   />
-                )}
+                ) : null}
               </div>
               <div className="min-w-0 flex-1">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
@@ -220,6 +246,11 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${urgency.bg}`}>
                     {urgency.title}
                   </span>
+                  {result.detection_bboxes && result.detection_bboxes.length > 1 && (
+                    <span className="text-[11px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                      {result.detection_bboxes.length} Buah Terdeteksi
+                    </span>
+                  )}
                   <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                     Jumlah: {result.saved_weight_kg} kg
                   </span>
@@ -463,12 +494,17 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 bg-white rounded-lg border border-slate-200">
-                  <span className="text-xs text-slate-500 block">Estimasi Modal Terselamatkan:</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs text-slate-500 block">Estimasi Modal Terselamatkan:</span>
+                    <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      Rp {Math.round(result.financial_savings_idr / Math.max(0.1, result.saved_weight_kg)).toLocaleString('id-ID')}/kg
+                    </span>
+                  </div>
                   <div className="text-base sm:text-lg font-black text-emerald-700 mt-0.5">
                     Rp {result.financial_savings_idr.toLocaleString('id-ID')}
                   </div>
                   <span className="text-xs text-slate-500">
-                    Berdasarkan {result.saved_weight_kg} kg buah
+                    Berdasarkan {result.saved_weight_kg} kg stok buah
                   </span>
                 </div>
 
@@ -499,7 +535,9 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
           {/* Card Panduan Resep Olahan (Upcycling) */}
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
             <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
-              Pilihan Olahan Bila Stok Belum Habis
+              {(result.status || '').toLowerCase().includes('busuk') || (shelfLife.disease_detected || '').toLowerCase().includes('mold') || (shelfLife.disease_detected || '').toLowerCase().includes('spot')
+                ? 'Solusi Daur Ulang Pangan Rusak (Kompos / Bio-Enzim)'
+                : 'Pilihan Olahan Bila Stok Belum Habis'}
             </span>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">

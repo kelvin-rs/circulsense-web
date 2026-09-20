@@ -173,8 +173,9 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   const environmentalStressFactor = Number((tempStressFactor * rhStressFactor).toFixed(2));
 
   // 4. Deteksi Peringatan Dini Gas Biokimia (MQ-4 & MQ-135)
-  const hasGasSpike = (ch4 >= 1.6 && ch4 > 0) || (aqi >= 75 && aqi > 0);
-  const isSeverelySpoiled = (ch4 >= 2.6 && ch4 > 0) || (aqi >= 130 && aqi > 0);
+  // Menghindari false alarm pada udara ruangan normal (MQ-135 normal: 350-800 ppm)
+  const hasGasSpike = (ch4 >= 15.0 && ch4 > 0) || (aqi >= 1000.0 && aqi > 0);
+  const isSeverelySpoiled = (ch4 >= 50.0 && ch4 > 0) || (aqi >= 1500.0 && aqi > 0);
 
   // 5. Penentuan Fase Kematangan (Ripeness Stage) & Deteksi Penyakit (5 Kelas Arsitektur Baru)
   let ripenessStage: RipenessStage = 'Fullripe (Matang Optimal)';
@@ -193,9 +194,9 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   } else if (defectStr.includes('overripe') || hasGasSpike) {
     diseaseDetected = 'Overripe (Lewat Matang)';
     ripenessStage = 'Overripe (Lewat Matang)';
-  } else if (defectStr.includes('hijau') || defectStr.includes('unripe') || (colorVal.consistency_status !== 'Belum Ada Data Sensor' && (colorVal.sensor_name.toLowerCase().includes('hijau') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.40)))) {
+  } else if (defectStr.includes('hijau') || defectStr.includes('unripe')) {
     ripenessStage = 'Unripe (Mentah)';
-  } else if (defectStr.includes('oranye') || (colorVal.consistency_status !== 'Belum Ada Data Sensor' && (colorVal.sensor_name.toLowerCase().includes('oranye') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.48)))) {
+  } else if (defectStr.includes('oranye') || defectStr.includes('semiripe') || defectStr.includes('setengah')) {
     ripenessStage = 'Semiripe (Setengah Matang)';
   } else {
     ripenessStage = 'Fullripe (Matang Optimal)';
@@ -336,16 +337,21 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
 
   // Bobot default standar sampel (1.0 kg)
   const batchWeightKg = Number(visual.batch_weight_kg ?? 1.0);
-  const basePricePerKg = 65000;
-  let financialSavings = 0;
-
+  
+  // Harga Pasar Riil per kg Berdasarkan Benchmark Pasar Indonesia:
+  // - Segar Prima (Grade A Super): Rp 75.000/kg
+  // - Layu / Olahan Selai UMKM: Rp 35.000/kg
+  // - Busuk / Kompos Organik: Rp 3.000/kg
+  let unitPricePerKg = 75000;
   if (status === 'Segar') {
-    financialSavings = Math.round(batchWeightKg * basePricePerKg);
-  } else if (status === 'Layu') {
-    financialSavings = Math.round(batchWeightKg * basePricePerKg * 0.70);
+    unitPricePerKg = 75000;
+  } else if (status === 'Terlalu Matang' || status === 'Layu') {
+    unitPricePerKg = 35000;
   } else {
-    financialSavings = Math.round(batchWeightKg * 6000);
+    unitPricePerKg = 3000;
   }
+
+  const financialSavings = Math.round(batchWeightKg * unitPricePerKg);
 
   const isComposted = status === 'Busuk';
   const divertedKg = batchWeightKg;

@@ -131,14 +131,15 @@ export async function POST(request: NextRequest) {
 
           const isRotten = md.status === 'Busuk' || md.disease_detected === 'Gray_Mold' || md.grade === 'Rotten';
           if (isRotten) {
-            fusionResult.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.busuk || fusionResult.recommendation), title: md.inventory_action };
+            fusionResult.recommendation = RECIPE_CATALOG['Stroberi']?.busuk || fusionResult.recommendation;
           } else if (md.status === 'Terlalu Matang' || md.status === 'Layu') {
-            fusionResult.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.layu || fusionResult.recommendation), title: md.inventory_action };
+            fusionResult.recommendation = RECIPE_CATALOG['Stroberi']?.layu || fusionResult.recommendation;
           } else {
-            fusionResult.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.segar || fusionResult.recommendation), title: md.inventory_action };
+            fusionResult.recommendation = RECIPE_CATALOG['Stroberi']?.segar || fusionResult.recommendation;
           }
 
           if (md.bounding_boxes && md.bounding_boxes.length > 0) {
+            fusionResult.detection_bboxes = md.bounding_boxes;
             fusionResult.detection_bbox = [
               md.bounding_boxes[0].x,
               md.bounding_boxes[0].y,

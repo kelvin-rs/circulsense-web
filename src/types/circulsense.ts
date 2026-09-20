@@ -131,6 +131,15 @@ export interface FusionResult {
   is_live_ml?: boolean;
   ml_server_url?: string;
   detection_bbox?: number[];
+  detection_bboxes?: Array<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    label?: string;
+    confidence?: number;
+    status?: 'success' | 'warning' | 'danger';
+  }>;
 }
 
 export interface ScanRecord {

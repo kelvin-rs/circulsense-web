@@ -192,14 +192,15 @@ export default function BerandaPage() {
 
           const isRotten = md.status === 'Busuk' || md.disease_detected === 'Gray_Mold' || md.grade === 'Rotten';
           if (isRotten) {
-            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.busuk || result.recommendation), title: md.inventory_action };
+            result.recommendation = RECIPE_CATALOG['Stroberi']?.busuk || result.recommendation;
           } else if (md.status === 'Terlalu Matang' || md.status === 'Layu') {
-            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.layu || result.recommendation), title: md.inventory_action };
+            result.recommendation = RECIPE_CATALOG['Stroberi']?.layu || result.recommendation;
           } else {
-            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.segar || result.recommendation), title: md.inventory_action };
+            result.recommendation = RECIPE_CATALOG['Stroberi']?.segar || result.recommendation;
           }
 
           if (md.bounding_boxes && md.bounding_boxes.length > 0) {
+            result.detection_bboxes = md.bounding_boxes;
             result.detection_bbox = [
               md.bounding_boxes[0].x,
               md.bounding_boxes[0].y,
@@ -249,16 +250,17 @@ export default function BerandaPage() {
           result.shelf_life.pricing_strategy = cloudRes.pricing_strategy as any;
           result.shelf_life.urgency_level = (cloudRes.urgency_level || (cloudRes.status === 'Busuk' ? 'Kedaluwarsa' : (cloudRes.status === 'Terlalu Matang' ? 'Perhatian' : (cloudRes.status === 'Layu' ? 'Kritis' : 'Aman')))) as any;
 
-          const isRotten = cloudRes.status === 'Busuk' || (cloudRes.disease_detected || '').includes('Gray_Mold');
-          if (isRotten) {
-            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.busuk || result.recommendation), title: cloudRes.inventory_action };
+          const isRottenCloud = cloudRes.status === 'Busuk' || (cloudRes.disease_detected || '').includes('Gray_Mold');
+          if (isRottenCloud) {
+            result.recommendation = RECIPE_CATALOG['Stroberi']?.busuk || result.recommendation;
           } else if (cloudRes.status === 'Terlalu Matang' || cloudRes.status === 'Layu') {
-            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.layu || result.recommendation), title: cloudRes.inventory_action };
+            result.recommendation = RECIPE_CATALOG['Stroberi']?.layu || result.recommendation;
           } else {
-            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.segar || result.recommendation), title: cloudRes.inventory_action };
+            result.recommendation = RECIPE_CATALOG['Stroberi']?.segar || result.recommendation;
           }
 
           if (cloudRes.bounding_boxes && cloudRes.bounding_boxes.length > 0) {
+            result.detection_bboxes = cloudRes.bounding_boxes;
             result.detection_bbox = [
               cloudRes.bounding_boxes[0].x,
               cloudRes.bounding_boxes[0].y,

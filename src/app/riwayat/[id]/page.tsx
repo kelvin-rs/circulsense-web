@@ -6,13 +6,16 @@ import { useParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
 import { fetchScanRecordById } from '@/lib/supabase';
-import { ScanRecord, GasData } from '@/types/circulsense';
+import { ScanRecord, GasData, UpcyclingRecommendation } from '@/types/circulsense';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
+import { RECIPE_CATALOG } from '@/lib/sensor-fusion';
+import { RecipeDetailModal } from '@/components/RecipeDetailModal';
 import {
   ArrowLeft,
   Calendar,
   CookingPot,
-  Layers
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 
 export default function RiwayatDetailPage() {
@@ -23,6 +26,7 @@ export default function RiwayatDetailPage() {
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
   const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
   const [loading, setLoading] = useState(true);
+  const [activeRecipeModal, setActiveRecipeModal] = useState<UpcyclingRecommendation | null>(null);
 
   const loadDetail = useCallback(async () => {
     if (!id) return;
@@ -318,21 +322,71 @@ export default function RiwayatDetailPage() {
           </div>
         </div>
 
-        {/* 4. RECOMMENDED UPCYCLING ACTION */}
-        <div className="p-5 rounded-2xl bg-[#DCFCE7]/60 border border-[#BBF7D0] space-y-2">
-          <div className="flex items-center space-x-2 text-[#166534] font-bold text-xs uppercase tracking-wider">
-            <CookingPot className="w-4 h-4" />
-            <span>Rekomendasi Aksi Upcycling Pangan</span>
-          </div>
+        {/* 4. RECOMMENDED UPCYCLING ACTION & INTERACTIVE RECIPE */}
+        {(() => {
+          const getRecommendation = () => {
+            if (!record) return RECIPE_CATALOG['Stroberi'].segar;
+            const catalog = RECIPE_CATALOG[record.item_name] || RECIPE_CATALOG['Stroberi'];
+            if (!catalog) return RECIPE_CATALOG['Stroberi'].segar;
 
-          <h3 className="text-base sm:text-lg font-extrabold text-[#0F172A]">
-            {record.recommendation_title || record.action_taken || 'Olahan Pangan Ramah Lingkungan'}
-          </h3>
+            const isRottenRec = record.status === 'Busuk' ||
+              (record.disease_detected || '').toLowerCase().includes('gray') ||
+              (record.disease_detected || '').toLowerCase().includes('mold') ||
+              (record.disease_detected || '').toLowerCase().includes('spot') ||
+              (record.shelf_life_hours != null && record.shelf_life_hours <= 0);
 
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-            Metode pengolahan optimal berdasarkan evaluasi fusi sensor untuk mempertahankan nutrisi dan mencegah emisi gas rumah kaca di TPA.
-          </p>
-        </div>
+            if (isRottenRec) return catalog.busuk;
+            if (record.status === 'Terlalu Matang' || record.status === 'Layu') return catalog.layu;
+            return catalog.segar;
+          };
+
+          const recDetail = getRecommendation();
+
+          return (
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
+                  {isRotten ? 'Solusi Daur Ulang Pangan (Kompos Organik)' : 'Pilihan Resep & Aksi Olahan Pangan'}
+                </span>
+                <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  {recDetail.type}
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">
+                <div className="flex items-start space-x-3">
+                  <img
+                    src={recDetail.image_url}
+                    alt={recDetail.title}
+                    className="w-16 h-16 rounded-lg object-cover shrink-0 border border-slate-200"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h5 className="font-bold text-slate-900 text-sm leading-snug">
+                      {recDetail.title}
+                    </h5>
+                    <p className="text-xs text-slate-600 leading-relaxed mt-0.5 line-clamp-2">
+                      {recDetail.subtitle}
+                    </p>
+                    <div className="flex items-center space-x-3 mt-1 text-[11px] text-slate-500 font-medium">
+                      <span>⏱ {recDetail.prep_time}</span>
+                      <span>• Tingkat: {recDetail.difficulty}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveRecipeModal(recDetail)}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 shadow-xs"
+                >
+                  <CookingPot className="w-4 h-4" />
+                  <span>Lihat Resep & Langkah Olahan Lengkap</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 5. ENVIRONMENTAL & FINANCIAL IMPACT */}
         <div className="space-y-2.5">
@@ -366,6 +420,11 @@ export default function RiwayatDetailPage() {
       </div>
 
       <BottomNav />
+
+      <RecipeDetailModal
+        recommendation={activeRecipeModal}
+        onClose={() => setActiveRecipeModal(null)}
+      />
     </main>
   );
 }
