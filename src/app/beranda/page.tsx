@@ -8,7 +8,7 @@ import { ProsesAnalisis } from '@/components/beranda/ProsesAnalisis';
 import { HasilAnalisis } from '@/components/beranda/HasilAnalisis';
 import { RecipeDetailModal } from '@/components/RecipeDetailModal';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
-import { runSensorFusion } from '@/lib/sensor-fusion';
+import { runSensorFusion, RECIPE_CATALOG } from '@/lib/sensor-fusion';
 import { saveScanRecord, requestCloudMlInference, supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { GasData, VisualData, FusionResult, UpcyclingRecommendation } from '@/types/circulsense';
@@ -23,10 +23,10 @@ export default function BerandaPage() {
   const [triggerCameraCount, setTriggerCameraCount] = useState<number>(0);
 
   const [gasData, setGasData] = useState<GasData>(mqttService.getCurrentData());
-  const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('disconnected');
+  const [mqttStatus, setMqttStatus] = useState<MQTTStatus>('connecting');
   const [activeRecipeModal, setActiveRecipeModal] = useState<UpcyclingRecommendation | null>(null);
   const [syncAlert, setSyncAlert] = useState<{
-    type: 'success' | 'warning' | 'error' | 'info';
+    type: 'success' | 'warning' | 'info';
     title: string;
     message: string;
   } | null>(null);
@@ -52,30 +52,13 @@ export default function BerandaPage() {
     setTriggerCameraCount((prev) => prev + 1);
   };
 
-  // 1. Muat data telemetri terakhir dari database Supabase milik pengguna
+  // 1. Muat telemetri terakhir dari tabel IoT Supabase
   useEffect(() => {
     async function loadLatestTelemetry() {
-      if (!supabase || !user) return;
-
+      if (!supabase) return;
       try {
-        let query = supabase
-          .from('telemetri_sensor')
-          .select('*')
-          .order('waktu_perekaman', { ascending: false })
-          .limit(1);
-
-        if (user?.id) {
-          // Coba ambil telemetri milik user
-          const { data: userTele } = await query.eq('id_pengguna', user.id).maybeSingle();
-          if (userTele) {
-            applyTelemetry(userTele);
-            return;
-          }
-        }
-
-        // Fallback ke telemetri terbaru dari node sensor manapun
         const { data: latestData, error } = await supabase
-          .from('telemetri_sensor')
+          .from('telemetri_iot_mentah')
           .select('*')
           .order('waktu_perekaman', { ascending: false })
           .limit(1)
@@ -83,6 +66,19 @@ export default function BerandaPage() {
 
         if (!error && latestData) {
           applyTelemetry(latestData);
+          return;
+        }
+
+        // Fallback ke telemetri_sensor jika telemetri_iot_mentah kosong
+        const { data: userTele } = await supabase
+          .from('telemetri_sensor')
+          .select('*')
+          .order('waktu_perekaman', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (userTele) {
+          applyTelemetry(userTele);
         }
       } catch (err) {
         console.warn('Gagal memuat telemetri terakhir dari database:', err);
@@ -168,7 +164,7 @@ export default function BerandaPage() {
           raw_mq135: gasData.raw_mq135,
           saved_weight_kg: Number(activeVisualData.batch_weight_kg ?? 0.5)
         }),
-        signal: AbortSignal.timeout(2000)
+        signal: AbortSignal.timeout(10000)
       });
 
       if (mlRes.ok) {
@@ -193,7 +189,16 @@ export default function BerandaPage() {
           result.shelf_life.inventory_action = md.inventory_action;
           result.shelf_life.pricing_strategy = md.pricing_strategy;
           result.shelf_life.urgency_level = md.urgency_level || (md.status === 'Busuk' ? 'Kedaluwarsa' : (md.status === 'Terlalu Matang' ? 'Perhatian' : (md.status === 'Layu' ? 'Kritis' : 'Aman')));
-          result.recommendation.title = md.inventory_action || result.recommendation.title;
+
+          const isRotten = md.status === 'Busuk' || md.disease_detected === 'Gray_Mold' || md.grade === 'Rotten';
+          if (isRotten) {
+            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.busuk || result.recommendation), title: md.inventory_action };
+          } else if (md.status === 'Terlalu Matang' || md.status === 'Layu') {
+            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.layu || result.recommendation), title: md.inventory_action };
+          } else {
+            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.segar || result.recommendation), title: md.inventory_action };
+          }
+
           if (md.bounding_boxes && md.bounding_boxes.length > 0) {
             result.detection_bbox = [
               md.bounding_boxes[0].x,
@@ -215,8 +220,8 @@ export default function BerandaPage() {
           });
         }
       }
-    } catch {
-      // Localhost REST offline atau diblokir mixed-content pada Vercel HTTPS
+    } catch (restErr) {
+      console.warn('[Beranda ML REST] Direct fetch gagal, fallback ke Cloud Bridge:', restErr);
     }
 
     // 2. Jika direct REST tidak dapat diakses (misal pada website Vercel), kirim ke Cloud Queue Supabase!
@@ -243,7 +248,16 @@ export default function BerandaPage() {
           result.shelf_life.inventory_action = cloudRes.inventory_action as any;
           result.shelf_life.pricing_strategy = cloudRes.pricing_strategy as any;
           result.shelf_life.urgency_level = (cloudRes.urgency_level || (cloudRes.status === 'Busuk' ? 'Kedaluwarsa' : (cloudRes.status === 'Terlalu Matang' ? 'Perhatian' : (cloudRes.status === 'Layu' ? 'Kritis' : 'Aman')))) as any;
-          result.recommendation.title = cloudRes.inventory_action || result.recommendation.title;
+
+          const isRotten = cloudRes.status === 'Busuk' || (cloudRes.disease_detected || '').includes('Gray_Mold');
+          if (isRotten) {
+            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.busuk || result.recommendation), title: cloudRes.inventory_action };
+          } else if (cloudRes.status === 'Terlalu Matang' || cloudRes.status === 'Layu') {
+            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.layu || result.recommendation), title: cloudRes.inventory_action };
+          } else {
+            result.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.segar || result.recommendation), title: cloudRes.inventory_action };
+          }
+
           if (cloudRes.bounding_boxes && cloudRes.bounding_boxes.length > 0) {
             result.detection_bbox = [
               cloudRes.bounding_boxes[0].x,

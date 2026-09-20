@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { runSensorFusion } from '@/lib/sensor-fusion';
+import { runSensorFusion, RECIPE_CATALOG } from '@/lib/sensor-fusion';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
           raw_mq135: raw_mq135,
           saved_weight_kg: Number(saved_weight_kg ?? 0.5)
         }),
-        signal: AbortSignal.timeout(2000)
+        signal: AbortSignal.timeout(10000)
       });
       if (mlRes.ok) {
         const mlJson = await mlRes.json();
@@ -128,7 +128,16 @@ export async function POST(request: NextRequest) {
           fusionResult.shelf_life.inventory_action = md.inventory_action;
           fusionResult.shelf_life.pricing_strategy = md.pricing_strategy;
           fusionResult.shelf_life.urgency_level = md.urgency_level || (md.status === 'Busuk' ? 'Kedaluwarsa' : (md.status === 'Terlalu Matang' ? 'Perhatian' : (md.status === 'Layu' ? 'Kritis' : 'Aman')));
-          fusionResult.recommendation.title = md.inventory_action || fusionResult.recommendation.title;
+
+          const isRotten = md.status === 'Busuk' || md.disease_detected === 'Gray_Mold' || md.grade === 'Rotten';
+          if (isRotten) {
+            fusionResult.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.busuk || fusionResult.recommendation), title: md.inventory_action };
+          } else if (md.status === 'Terlalu Matang' || md.status === 'Layu') {
+            fusionResult.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.layu || fusionResult.recommendation), title: md.inventory_action };
+          } else {
+            fusionResult.recommendation = { ...(RECIPE_CATALOG['Stroberi']?.segar || fusionResult.recommendation), title: md.inventory_action };
+          }
+
           if (md.bounding_boxes && md.bounding_boxes.length > 0) {
             fusionResult.detection_bbox = [
               md.bounding_boxes[0].x,
