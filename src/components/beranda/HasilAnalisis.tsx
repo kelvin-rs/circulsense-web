@@ -35,12 +35,14 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
   // Status Urgensi Sisa Waktu Simpan
   const getUrgencyBadge = () => {
     switch (shelfLife.urgency_level) {
-      case 'Aman':
+      case 'Aman': {
+        const isUnripe = (shelfLife.ripeness_stage || '').toLowerCase().includes('unripe') || (shelfLife.ripeness_stage || '').toLowerCase().includes('mentah');
         return {
           bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
           indicator: 'bg-emerald-500',
-          title: 'Stok Tahan Lama (Aman)'
+          title: isUnripe ? 'Stok Tahan Lama (Aman)' : 'Siap Jual Ritel (Prima)'
         };
+      }
       case 'Perhatian':
         return {
           bg: 'bg-amber-50 text-amber-800 border-amber-200',

@@ -180,12 +180,20 @@ export default function BerandaPage() {
           result.freshness_score = md.freshness_score;
           result.status = md.status;
           result.status_badge_color = md.badge_color;
+          result.status_summary = md.summary || md.action_recommendation || result.status_summary;
           result.shelf_life.hours_remaining = md.shelf_life_hours;
           result.shelf_life.days_remaining = md.shelf_life_days;
+          result.shelf_life.time_to_mature_hours = md.time_to_mature_hours ?? md.time_to_ripe_hours ?? 0;
+          result.shelf_life.time_to_ripe_hours = md.time_to_mature_hours ?? md.time_to_ripe_hours ?? 0;
+          result.shelf_life.time_to_ripe_days = md.time_to_mature_days ?? md.time_to_ripe_days ?? 0;
+          result.shelf_life.time_to_spoil_hours = md.time_to_spoil_hours ?? md.shelf_life_hours;
+          result.shelf_life.time_to_spoil_days = md.time_to_spoil_days ?? md.shelf_life_days;
           result.shelf_life.ripeness_stage = md.ripeness_stage;
           result.shelf_life.disease_detected = md.disease_detected;
           result.shelf_life.inventory_action = md.inventory_action;
           result.shelf_life.pricing_strategy = md.pricing_strategy;
+          result.shelf_life.urgency_level = md.urgency_level || (md.status === 'Busuk' ? 'Kedaluwarsa' : (md.status === 'Terlalu Matang' ? 'Perhatian' : (md.status === 'Layu' ? 'Kritis' : 'Aman')));
+          result.recommendation.title = md.inventory_action || result.recommendation.title;
           if (md.bounding_boxes && md.bounding_boxes.length > 0) {
             result.detection_bbox = [
               md.bounding_boxes[0].x,
@@ -222,12 +230,20 @@ export default function BerandaPage() {
           result.freshness_score = cloudRes.freshness_score;
           result.status = cloudRes.status as any;
           result.status_badge_color = cloudRes.badge_color as any;
+          result.status_summary = cloudRes.summary || result.status_summary;
           result.shelf_life.hours_remaining = cloudRes.shelf_life_hours;
           result.shelf_life.days_remaining = cloudRes.shelf_life_days;
+          result.shelf_life.time_to_mature_hours = cloudRes.time_to_ripe_hours ?? 0;
+          result.shelf_life.time_to_ripe_hours = cloudRes.time_to_ripe_hours ?? 0;
+          result.shelf_life.time_to_ripe_days = cloudRes.time_to_ripe_days ?? 0;
+          result.shelf_life.time_to_spoil_hours = cloudRes.time_to_spoil_hours ?? cloudRes.shelf_life_hours;
+          result.shelf_life.time_to_spoil_days = cloudRes.time_to_spoil_days ?? cloudRes.shelf_life_days;
           result.shelf_life.ripeness_stage = cloudRes.ripeness_stage as any;
           result.shelf_life.disease_detected = cloudRes.disease_detected as any;
           result.shelf_life.inventory_action = cloudRes.inventory_action as any;
           result.shelf_life.pricing_strategy = cloudRes.pricing_strategy as any;
+          result.shelf_life.urgency_level = (cloudRes.urgency_level || (cloudRes.status === 'Busuk' ? 'Kedaluwarsa' : (cloudRes.status === 'Terlalu Matang' ? 'Perhatian' : (cloudRes.status === 'Layu' ? 'Kritis' : 'Aman')))) as any;
+          result.recommendation.title = cloudRes.inventory_action || result.recommendation.title;
           if (cloudRes.bounding_boxes && cloudRes.bounding_boxes.length > 0) {
             result.detection_bbox = [
               cloudRes.bounding_boxes[0].x,

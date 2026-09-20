@@ -193,9 +193,9 @@ export function runSensorFusion(visual: VisualData, gas: GasData): FusionResult 
   } else if (defectStr.includes('overripe') || hasGasSpike) {
     diseaseDetected = 'Overripe (Lewat Matang)';
     ripenessStage = 'Overripe (Lewat Matang)';
-  } else if (defectStr.includes('hijau') || defectStr.includes('unripe') || colorVal.sensor_name.toLowerCase().includes('hijau') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.40)) {
+  } else if (defectStr.includes('hijau') || defectStr.includes('unripe') || (colorVal.consistency_status !== 'Belum Ada Data Sensor' && (colorVal.sensor_name.toLowerCase().includes('hijau') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.40)))) {
     ripenessStage = 'Unripe (Mentah)';
-  } else if (defectStr.includes('oranye') || colorVal.sensor_name.toLowerCase().includes('oranye') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.48)) {
+  } else if (defectStr.includes('oranye') || (colorVal.consistency_status !== 'Belum Ada Data Sensor' && (colorVal.sensor_name.toLowerCase().includes('oranye') || (colorVal.red_ratio > 0 && colorVal.red_ratio < 0.48)))) {
     ripenessStage = 'Semiripe (Setengah Matang)';
   } else {
     ripenessStage = 'Fullripe (Matang Optimal)';

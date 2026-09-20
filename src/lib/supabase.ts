@@ -338,6 +338,8 @@ export async function requestCloudMlInference(
   disease_detected: string;
   inventory_action: string;
   pricing_strategy: string;
+  summary?: string;
+  urgency_level?: string;
   bounding_boxes: any[];
   impact: {
     saved_weight_kg: number;
@@ -435,6 +437,8 @@ export async function requestCloudMlInference(
           disease_detected: record.deteksi_penyakit ?? 'Normal (Bebas Jamur)',
           inventory_action: record.tindakan_stok_pedagang ?? 'Pajang di Etalase Depan',
           pricing_strategy: record.rekomendasi_harga ?? 'Harga Normal',
+          summary: record.ringkasan_analisis || `${record.status_kesegaran ?? 'Segar'}: ${record.tindakan_stok_pedagang ?? 'Pajang di etalase'}. Sisa umur simpan ${hoursSpoil} jam (${daysSpoil} hari).`,
+          urgency_level: (record.status_kesegaran === 'Busuk' ? 'Kedaluwarsa' : (record.status_kesegaran === 'Terlalu Matang' ? 'Perhatian' : (record.status_kesegaran === 'Layu' ? 'Kritis' : 'Aman'))),
           bounding_boxes: visualMeta.bounding_boxes || [],
           impact: {
             saved_weight_kg: Number(record.estimasi_berat_kg ?? 0.5),
