@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { runSensorFusion, RECIPE_CATALOG } from '@/lib/sensor-fusion';
+import { runSensorFusion } from '@/lib/sensor-fusion';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,8 +27,6 @@ export async function POST(request: NextRequest) {
 
     const {
       id_pengguna,
-      raw_mq4,
-      raw_mq135,
       item_name,
       category,
       ch4_ppm,
@@ -71,8 +69,6 @@ export async function POST(request: NextRequest) {
     const gasInput = {
       ch4_ppm: Number(ch4_ppm ?? 0.0),
       aqi_ppm: Number(aqi_ppm ?? 0.0),
-      raw_mq4: raw_mq4 !== undefined ? Number(raw_mq4) : undefined,
-      raw_mq135: raw_mq135 !== undefined ? Number(raw_mq135) : undefined,
       temperature: Number(temperature ?? 27.0),
       humidity: Number(humidity ?? 65.0),
       color_r: 0,
@@ -99,12 +95,10 @@ export async function POST(request: NextRequest) {
           temperature: Number(temperature ?? 27.0),
           humidity: Number(humidity ?? 65.0),
           ch4_ppm: Number(ch4_ppm ?? 0.0),
-          raw_mq4: raw_mq4,
           aqi_ppm: Number(aqi_ppm ?? 0.0),
-          raw_mq135: raw_mq135,
           saved_weight_kg: Number(saved_weight_kg ?? 0.5)
         }),
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(2000)
       });
       if (mlRes.ok) {
         const mlJson = await mlRes.json();
@@ -115,38 +109,12 @@ export async function POST(request: NextRequest) {
           fusionResult.freshness_score = md.freshness_score;
           fusionResult.status = md.status;
           fusionResult.status_badge_color = md.badge_color;
-          fusionResult.status_summary = md.summary || md.action_recommendation || fusionResult.status_summary;
           fusionResult.shelf_life.hours_remaining = md.shelf_life_hours;
           fusionResult.shelf_life.days_remaining = md.shelf_life_days;
-          fusionResult.shelf_life.time_to_mature_hours = md.time_to_mature_hours ?? md.time_to_ripe_hours ?? 0;
-          fusionResult.shelf_life.time_to_ripe_hours = md.time_to_mature_hours ?? md.time_to_ripe_hours ?? 0;
-          fusionResult.shelf_life.time_to_ripe_days = md.time_to_mature_days ?? md.time_to_ripe_days ?? 0;
-          fusionResult.shelf_life.time_to_spoil_hours = md.time_to_spoil_hours ?? md.shelf_life_hours;
-          fusionResult.shelf_life.time_to_spoil_days = md.time_to_spoil_days ?? md.shelf_life_days;
           fusionResult.shelf_life.ripeness_stage = md.ripeness_stage;
           fusionResult.shelf_life.disease_detected = md.disease_detected;
           fusionResult.shelf_life.inventory_action = md.inventory_action;
           fusionResult.shelf_life.pricing_strategy = md.pricing_strategy;
-          fusionResult.shelf_life.urgency_level = md.urgency_level || (md.status === 'Busuk' ? 'Kedaluwarsa' : (md.status === 'Terlalu Matang' ? 'Perhatian' : (md.status === 'Layu' ? 'Kritis' : 'Aman')));
-
-          const isRotten = md.status === 'Busuk' || md.disease_detected === 'Gray_Mold' || md.grade === 'Rotten';
-          if (isRotten) {
-            fusionResult.recommendation = RECIPE_CATALOG['Stroberi']?.busuk || fusionResult.recommendation;
-          } else if (md.status === 'Terlalu Matang' || md.status === 'Layu') {
-            fusionResult.recommendation = RECIPE_CATALOG['Stroberi']?.layu || fusionResult.recommendation;
-          } else {
-            fusionResult.recommendation = RECIPE_CATALOG['Stroberi']?.segar || fusionResult.recommendation;
-          }
-
-          if (md.bounding_boxes && md.bounding_boxes.length > 0) {
-            fusionResult.detection_bboxes = md.bounding_boxes;
-            fusionResult.detection_bbox = [
-              md.bounding_boxes[0].x,
-              md.bounding_boxes[0].y,
-              md.bounding_boxes[0].w,
-              md.bounding_boxes[0].h
-            ];
-          }
           if (md.impact) {
             fusionResult.prevented_ch4_g = md.impact.prevented_ch4_g;
             fusionResult.prevented_co2e_g = md.impact.prevented_co2e_g;

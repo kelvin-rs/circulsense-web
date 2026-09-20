@@ -174,101 +174,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     setUseLiveCamera(true);
   };
 
-  const analyzeImageColorAndDefects = (imgDataUrl: string): Promise<{ visual_score: number; defects: string[] }> => {
-    return new Promise((resolve) => {
-      if (typeof window === 'undefined') {
-        resolve({ visual_score: 5, defects: [] });
-        return;
-      }
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          const size = 64;
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve({ visual_score: 5, defects: [] });
-            return;
-          }
-          ctx.drawImage(img, 0, 0, size, size);
-          const imgData = ctx.getImageData(0, 0, size, size).data;
-
-          let pixelCount = 0;
-          let greenCount = 0;
-          let redCount = 0;
-          let darkCount = 0;
-          let grayMoldCount = 0;
-
-          for (let i = 0; i < imgData.length; i += 4) {
-            const r = imgData[i];
-            const g = imgData[i + 1];
-            const b = imgData[i + 2];
-
-            // Abaikan background sangat putih / pantulan kilap lampu
-            if (r > 240 && g > 240 && b > 240) continue;
-            // Abaikan warna sangat gelap sudut
-            if (r < 25 && g < 25 && b < 25) continue;
-
-            pixelCount++;
-            const sum = r + g + b + 0.001;
-            const rRatio = r / sum;
-            const gRatio = g / sum;
-
-            if (g > r * 1.05 && g > b && gRatio >= 0.38) {
-              greenCount++;
-            } else if (r > g * 1.2 && r > b * 1.2 && rRatio >= 0.44) {
-              redCount++;
-            }
-
-            if (r < 75 && g < 55 && b < 45 && r > 20) {
-              darkCount++;
-            }
-
-            const diffRG = Math.abs(r - g);
-            const diffGB = Math.abs(g - b);
-            if (diffRG < 20 && diffGB < 20 && r >= 75 && r <= 175) {
-              grayMoldCount++;
-            }
-          }
-
-          const defects: string[] = [];
-          let score = 5;
-
-          if (pixelCount > 40) {
-            const greenFrac = greenCount / pixelCount;
-            const redFrac = redCount / pixelCount;
-            const darkFrac = darkCount / pixelCount;
-            const moldFrac = grayMoldCount / pixelCount;
-
-            if (moldFrac >= 0.22) {
-              defects.push('gray_mold');
-              score = 1;
-            } else if (darkFrac >= 0.14) {
-              defects.push('black_spot');
-              score = 2;
-            } else if (greenFrac >= 0.25 && redFrac < 0.22) {
-              defects.push('unripe', 'hijau');
-              score = 5;
-            } else if (greenFrac >= 0.15 && redFrac >= 0.25) {
-              defects.push('semiripe', 'oranye');
-              score = 5;
-            }
-          }
-
-          resolve({ visual_score: score, defects });
-        } catch {
-          resolve({ visual_score: 5, defects: [] });
-        }
-      };
-      img.onerror = () => resolve({ visual_score: 5, defects: [] });
-      img.src = imgDataUrl;
-    });
-  };
-
-  const handleStartAnalysis = async () => {
+  const handleStartAnalysis = () => {
     if (!capturedImage) {
       activateCamera();
       return;
@@ -276,14 +182,12 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     if (isAnalyzing) return;
     setIsAnalyzing(true);
 
-    const { visual_score, defects } = await analyzeImageColorAndDefects(capturedImage);
-
     const visualPayload: VisualData = {
       item_name: 'Stroberi',
       category: 'Buah',
       confidence: detectedConfidence,
-      visual_score: visual_score,
-      defects: defects,
+      visual_score: 5,
+      defects: [],
       image_url: capturedImage,
       batch_weight_kg: batchWeightKg
     };

@@ -5,10 +5,8 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
 import { fetchScanRecords, deleteScanRecord, clearAllScanRecords } from '@/lib/supabase';
-import { ScanRecord, GasData, UpcyclingRecommendation } from '@/types/circulsense';
+import { ScanRecord, GasData } from '@/types/circulsense';
 import { mqttService, MQTTStatus } from '@/lib/mqtt';
-import { RECIPE_CATALOG } from '@/lib/sensor-fusion';
-import { RecipeDetailModal } from '@/components/RecipeDetailModal';
 import {
   Search,
   ChevronRight,
@@ -18,8 +16,7 @@ import {
   Check,
   RotateCcw,
   Camera,
-  Layers,
-  CookingPot
+  Layers
 } from 'lucide-react';
 import { AutoAlert, AlertType } from '@/components/AutoAlert';
 
@@ -40,23 +37,6 @@ export default function RiwayatPage() {
   const [itemToDelete, setItemToDelete] = useState<ScanRecord | null>(null);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState<boolean>(false);
   const [isClearing, setIsClearing] = useState<boolean>(false);
-  const [activeRecipeModal, setActiveRecipeModal] = useState<UpcyclingRecommendation | null>(null);
-
-  const getRecommendationForRecord = (rec: ScanRecord): UpcyclingRecommendation => {
-    const catalog = RECIPE_CATALOG[rec.item_name] || RECIPE_CATALOG['Stroberi'];
-    if (!catalog) return RECIPE_CATALOG['Stroberi'].segar;
-
-    const isRottenRec =
-      rec.status === 'Busuk' ||
-      (rec.disease_detected || '').toLowerCase().includes('gray') ||
-      (rec.disease_detected || '').toLowerCase().includes('mold') ||
-      (rec.disease_detected || '').toLowerCase().includes('spot') ||
-      (rec.shelf_life_hours != null && rec.shelf_life_hours <= 0);
-
-    if (isRottenRec) return catalog.busuk;
-    if (rec.status === 'Terlalu Matang' || rec.status === 'Layu') return catalog.layu;
-    return catalog.segar;
-  };
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -460,19 +440,6 @@ export default function RiwayatPage() {
                             ⚠ {rec.disease_detected}
                           </span>
                         )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setActiveRecipeModal(getRecommendationForRecord(rec));
-                          }}
-                          className="inline-flex items-center space-x-1 text-[11px] font-bold text-[#166534] bg-[#DCFCE7] hover:bg-[#BBF7D0] px-2 py-0.5 rounded-md transition border border-[#BBF7D0] cursor-pointer"
-                          title="Pilih dan lihat rekomendasi olahan pangan"
-                        >
-                          <CookingPot className="w-3 h-3 text-[#166534]" />
-                          <span>Pilih Olahan</span>
-                        </button>
                       </div>
                     </div>
                   </Link>
@@ -590,14 +557,6 @@ export default function RiwayatPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* MODAL DETAIL RESEP & AKSI OLAHAN */}
-      {activeRecipeModal && (
-        <RecipeDetailModal
-          recommendation={activeRecipeModal}
-          onClose={() => setActiveRecipeModal(null)}
-        />
       )}
 
       <BottomNav />
