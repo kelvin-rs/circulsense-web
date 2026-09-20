@@ -255,74 +255,85 @@ export default function RiwayatDetailPage() {
         )}
 
         {/* 3. CITRA BUAH & BOUNDING BOX */}
-        <div className="relative w-full aspect-[16/9] sm:aspect-[16/8] rounded-2xl overflow-hidden bg-slate-900 shadow-xs border border-slate-200">
+        <div className="relative w-full rounded-2xl overflow-hidden bg-slate-950 shadow-xs border border-slate-200 flex items-center justify-center min-h-[200px] max-h-[460px]">
           {record.image_url ? (
-            <img
-              src={record.image_url}
-              alt={record.item_name}
-              className="w-full h-full object-cover"
-            />
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden py-2 sm:py-3">
+              {/* Blurred ambient backdrop */}
+              <img
+                src={record.image_url}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-110 pointer-events-none select-none"
+              />
+              <div className="relative z-1 inline-block max-w-full">
+                <img
+                  src={record.image_url}
+                  alt={record.item_name}
+                  className="max-w-full max-h-[380px] sm:max-h-[440px] w-auto h-auto block mx-auto rounded-lg shadow-sm"
+                />
+
+                {/* Render bounding box untuk setiap buah terdeteksi */}
+                {fruitList && fruitList.length > 0 ? (
+                  fruitList.map((f: any, idx: number) => {
+                    const rawBbox = f.bbox_norm || f.bbox || (f.x !== undefined ? [f.x, f.y, f.w, f.h] : null);
+                    if (!rawBbox || !Array.isArray(rawBbox) || rawBbox.length !== 4) return null;
+                    const isSelected = selectedFruitIdx === idx;
+                    const left = Math.max(0, (rawBbox[0] - rawBbox[2] / 2) * 100);
+                    const top = Math.max(0, (rawBbox[1] - rawBbox[3] / 2) * 100);
+                    const width = Math.min(100 - left, rawBbox[2] * 100);
+                    const height = Math.min(100 - top, rawBbox[3] * 100);
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFruitIdx(idx);
+                        }}
+                        title={`🍓 Stroberi #${idx + 1}`}
+                        className={`absolute rounded transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? 'border-2 border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-300 z-10'
+                            : 'border-2 border-dashed border-amber-300/80 bg-amber-400/15 hover:bg-amber-400/30 z-0'
+                        }`}
+                        style={{
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          width: `${width}%`,
+                          height: `${height}%`,
+                        }}
+                      >
+                        <span
+                          className={`absolute -top-3.5 -left-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded shadow-xs ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white border border-emerald-300'
+                              : 'bg-slate-900/80 text-amber-300'
+                          }`}
+                        >
+                          #{idx + 1}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  activeBbox && Array.isArray(activeBbox) && activeBbox.length === 4 && (
+                    <div
+                      className="absolute border-2 border-emerald-400 bg-emerald-500/20 rounded pointer-events-none transition-all duration-300"
+                      style={{
+                        left: `${Math.max(0, (activeBbox[0] - activeBbox[2] / 2) * 100)}%`,
+                        top: `${Math.max(0, (activeBbox[1] - activeBbox[3] / 2) * 100)}%`,
+                        width: `${Math.min(100, activeBbox[2] * 100)}%`,
+                        height: `${Math.min(100, activeBbox[3] * 100)}%`,
+                      }}
+                    />
+                  )
+                )}
+              </div>
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-500">
+            <div className="w-full h-48 flex items-center justify-center text-slate-500">
               <Layers className="w-10 h-10" />
             </div>
-          )}
-
-          {/* Render bounding box untuk setiap buah terdeteksi */}
-          {fruitList && fruitList.length > 0 ? (
-            fruitList.map((f: any, idx: number) => {
-              const rawBbox = f.bbox_norm || f.bbox || (f.x !== undefined ? [f.x, f.y, f.w, f.h] : null);
-              if (!rawBbox || !Array.isArray(rawBbox) || rawBbox.length !== 4) return null;
-              const isSelected = selectedFruitIdx === idx;
-              const left = Math.max(0, (rawBbox[0] - rawBbox[2] / 2) * 100);
-              const top = Math.max(0, (rawBbox[1] - rawBbox[3] / 2) * 100);
-              const width = Math.min(100 - left, rawBbox[2] * 100);
-              const height = Math.min(100 - top, rawBbox[3] * 100);
-
-              return (
-                <div
-                  key={idx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedFruitIdx(idx);
-                  }}
-                  title={`🍓 Stroberi #${idx + 1}`}
-                  className={`absolute rounded transition-all duration-200 cursor-pointer ${
-                    isSelected
-                      ? 'border-2 border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-300 z-10'
-                      : 'border-2 border-dashed border-amber-300/80 bg-amber-400/15 hover:bg-amber-400/30 z-0'
-                  }`}
-                  style={{
-                    left: `${left}%`,
-                    top: `${top}%`,
-                    width: `${width}%`,
-                    height: `${height}%`,
-                  }}
-                >
-                  <span
-                    className={`absolute -top-3.5 -left-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded shadow-xs ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white border border-emerald-300'
-                        : 'bg-slate-900/80 text-amber-300'
-                    }`}
-                  >
-                    #{idx + 1}
-                  </span>
-                </div>
-              );
-            })
-          ) : (
-            activeBbox && Array.isArray(activeBbox) && activeBbox.length === 4 && (
-              <div
-                className="absolute border-2 border-emerald-400 bg-emerald-500/20 rounded pointer-events-none transition-all duration-300"
-                style={{
-                  left: `${Math.max(0, (activeBbox[0] - activeBbox[2] / 2) * 100)}%`,
-                  top: `${Math.max(0, (activeBbox[1] - activeBbox[3] / 2) * 100)}%`,
-                  width: `${Math.min(100, activeBbox[2] * 100)}%`,
-                  height: `${Math.min(100, activeBbox[3] * 100)}%`,
-                }}
-              />
-            )
           )}
 
           <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-xs text-white text-xs font-bold px-2.5 py-1 rounded-lg">

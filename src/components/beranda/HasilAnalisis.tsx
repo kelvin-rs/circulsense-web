@@ -251,86 +251,94 @@ export const HasilAnalisis: React.FC<HasilAnalisisProps> = ({
         <div className="md:col-span-6 space-y-3.5">
           {/* Card: Citra & Mutu */}
           <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-start space-x-3.5">
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-slate-900 shrink-0 border border-slate-200">
-                <img
-                  src={result.image_url}
-                  alt={result.item_name}
-                  className="w-full h-full object-cover"
-                />
-                {/* Render bounding box untuk setiap buah terdeteksi */}
-                {fruitList && fruitList.length > 0 ? (
-                  fruitList.map((f: any, idx: number) => {
-                    const rawBbox = f.bbox_norm || f.bbox || (f.x !== undefined ? [f.x, f.y, f.w, f.h] : null);
-                    if (!rawBbox || !Array.isArray(rawBbox) || rawBbox.length !== 4) return null;
-                    const isSelected = selectedFruitIdx === idx;
-                    const left = Math.max(0, (rawBbox[0] - rawBbox[2] / 2) * 100);
-                    const top = Math.max(0, (rawBbox[1] - rawBbox[3] / 2) * 100);
-                    const width = Math.min(100 - left, rawBbox[2] * 100);
-                    const height = Math.min(100 - top, rawBbox[3] * 100);
-
-                    return (
-                      <div
-                        key={idx}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedFruitIdx(idx);
-                        }}
-                        title={`🍓 Stroberi #${idx + 1}`}
-                        className={`absolute rounded transition-all duration-200 cursor-pointer ${
-                          isSelected
-                            ? 'border-2 border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-300 z-10'
-                            : 'border-2 border-dashed border-amber-300/80 bg-amber-400/15 hover:bg-amber-400/30 z-0'
-                        }`}
-                        style={{
-                          left: `${left}%`,
-                          top: `${top}%`,
-                          width: `${width}%`,
-                          height: `${height}%`,
-                        }}
-                      >
-                        <span
-                          className={`absolute -top-3.5 -left-1 text-[9px] font-extrabold px-1 py-0.2 rounded shadow-xs ${
-                            isSelected
-                              ? 'bg-emerald-600 text-white border border-emerald-300'
-                              : 'bg-slate-900/80 text-amber-300'
-                          }`}
-                        >
-                          #{idx + 1}
-                        </span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  result.detection_bbox && result.detection_bbox.length === 4 && (
-                    <div
-                      className="absolute border-2 border-emerald-400 bg-emerald-500/20 rounded pointer-events-none"
-                      style={{
-                        left: `${Math.max(0, (result.detection_bbox[0] - result.detection_bbox[2] / 2) * 100)}%`,
-                        top: `${Math.max(0, (result.detection_bbox[1] - result.detection_bbox[3] / 2) * 100)}%`,
-                        width: `${Math.min(100, result.detection_bbox[2] * 100)}%`,
-                        height: `${Math.min(100, result.detection_bbox[3] * 100)}%`,
-                      }}
-                    />
-                  )
-                )}
+            {/* Citra & Mutu Visual Header */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-bold text-slate-800">
+                  Citra Sampel Terverifikasi AI
+                </span>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  {fruitList ? `Buah #${selectedFruitIdx + 1} dari ${fruitList.length}` : '1 Buah Terdeteksi'}
+                </span>
               </div>
 
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-xs font-bold text-slate-800">
-                    Citra Buah Terverifikasi
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    {fruitList ? `Buah #${selectedFruitIdx + 1} dari ${fruitList.length}` : '1 Buah'}
-                  </span>
+              {/* Wadah Visual dengan Rasio Asli & Ambient Backdrop */}
+              <div className="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 flex items-center justify-center min-h-[160px] max-h-[260px] shadow-2xs">
+                {/* Ambient backdrop */}
+                <img
+                  src={result.image_url}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-110 pointer-events-none select-none"
+                />
+                <div className="relative z-1 inline-block max-w-full max-h-[260px]">
+                  <img
+                    src={result.image_url}
+                    alt={result.item_name}
+                    className="max-w-full max-h-[260px] w-auto h-auto block mx-auto rounded-lg shadow-sm"
+                  />
+                  {/* Render bounding box untuk setiap buah terdeteksi */}
+                  {fruitList && fruitList.length > 0 ? (
+                    fruitList.map((f: any, idx: number) => {
+                      const rawBbox = f.bbox_norm || f.bbox || (f.x !== undefined ? [f.x, f.y, f.w, f.h] : null);
+                      if (!rawBbox || !Array.isArray(rawBbox) || rawBbox.length !== 4) return null;
+                      const isSelected = selectedFruitIdx === idx;
+                      const left = Math.max(0, (rawBbox[0] - rawBbox[2] / 2) * 100);
+                      const top = Math.max(0, (rawBbox[1] - rawBbox[3] / 2) * 100);
+                      const width = Math.min(100 - left, rawBbox[2] * 100);
+                      const height = Math.min(100 - top, rawBbox[3] * 100);
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFruitIdx(idx);
+                          }}
+                          title={`🍓 Stroberi #${idx + 1}`}
+                          className={`absolute rounded transition-all duration-200 cursor-pointer ${
+                            isSelected
+                              ? 'border-2 border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-300 z-10'
+                              : 'border-2 border-dashed border-amber-300/80 bg-amber-400/15 hover:bg-amber-400/30 z-0'
+                          }`}
+                          style={{
+                            left: `${left}%`,
+                            top: `${top}%`,
+                            width: `${width}%`,
+                            height: `${height}%`,
+                          }}
+                        >
+                          <span
+                            className={`absolute -top-3.5 -left-1 text-[9px] font-extrabold px-1 py-0.2 rounded shadow-xs ${
+                              isSelected
+                                ? 'bg-emerald-600 text-white border border-emerald-300'
+                                : 'bg-slate-900/80 text-amber-300'
+                            }`}
+                          >
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    result.detection_bbox && result.detection_bbox.length === 4 && (
+                      <div
+                        className="absolute border-2 border-emerald-400 bg-emerald-500/20 rounded pointer-events-none"
+                        style={{
+                          left: `${Math.max(0, (result.detection_bbox[0] - result.detection_bbox[2] / 2) * 100)}%`,
+                          top: `${Math.max(0, (result.detection_bbox[1] - result.detection_bbox[3] / 2) * 100)}%`,
+                          width: `${Math.min(100, result.detection_bbox[2] * 100)}%`,
+                          height: `${Math.min(100, result.detection_bbox[3] * 100)}%`,
+                        }}
+                      />
+                    )
+                  )}
                 </div>
-                <p className="text-xs text-slate-500">
-                  Posisi: <strong>{currentFruit?.position_desc || 'Area Tengah'}</strong>
-                </p>
-                <p className="text-xs text-slate-500">
-                  Akurasi Pengenalan: <strong>{((currentFruit?.detection_conf || 0.95) * 100).toFixed(0)}%</strong>
-                </p>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
+                <span>Posisi: <strong>{currentFruit?.position_desc || 'Area Fokus'}</strong></span>
+                <span>Akurasi Pengenalan: <strong>{((currentFruit?.detection_conf || 0.95) * 100).toFixed(0)}%</strong></span>
               </div>
             </div>
 

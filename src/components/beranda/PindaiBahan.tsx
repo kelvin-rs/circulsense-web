@@ -104,7 +104,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
     };
   }, [useLiveCamera, startCamera, stopCamera, onCameraStateChange]);
 
-  const compressImage = (dataUrl: string, maxDim = 800, quality = 0.75): Promise<string> => {
+  const compressImage = (dataUrl: string, maxDim = 1200, quality = 0.85): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -137,13 +137,32 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
 
   const handleTakeSnapshot = async () => {
     if (videoRef.current) {
+      const video = videoRef.current;
+      const vW = video.videoWidth > 0 ? video.videoWidth : 1280;
+      const vH = video.videoHeight > 0 ? video.videoHeight : 720;
+
+      // Presisi rasio aspek asli sensor kamera agar citra tidak gepeng / terdistorsi
+      const maxDim = 1200;
+      let targetW = vW;
+      let targetH = vH;
+
+      if (targetW > maxDim || targetH > maxDim) {
+        if (targetW > targetH) {
+          targetH = Math.round((vH * maxDim) / vW);
+          targetW = maxDim;
+        } else {
+          targetW = Math.round((vW * maxDim) / vH);
+          targetH = maxDim;
+        }
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = Math.min(800, videoRef.current.videoWidth || 800);
-      canvas.height = Math.min(800, videoRef.current.videoHeight || 600);
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        ctx.drawImage(video, 0, 0, targetW, targetH);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         setCapturedImage(dataUrl);
         setDetectedConfidence(0.96);
         setUseLiveCamera(false);
@@ -159,7 +178,7 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
       reader.onload = async (event) => {
         if (event.target?.result) {
           const rawUrl = event.target.result as string;
-          const compressed = await compressImage(rawUrl, 800, 0.75);
+          const compressed = await compressImage(rawUrl, 1200, 0.85);
           setCapturedImage(compressed);
           setDetectedConfidence(0.95);
           setUseLiveCamera(false);
@@ -385,13 +404,21 @@ export const PindaiBahan: React.FC<PindaiBahanProps> = ({
             </div>
 
             {/* Viewport Box */}
-            <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center shadow-sm">
+            <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center shadow-sm">
               {capturedImage ? (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                  {/* Ambient backdrop */}
+                  <img
+                    src={capturedImage}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-110 pointer-events-none select-none"
+                  />
+                  {/* Crisp uncropped un-squished foreground image */}
                   <img
                     src={capturedImage}
                     alt="Hasil Tangkapan Citra Stroberi"
-                    className="w-full h-full object-cover"
+                    className="relative z-1 max-w-full max-h-full object-contain drop-shadow-md"
                   />
                   <button
                     type="button"
